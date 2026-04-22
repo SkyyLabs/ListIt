@@ -230,7 +230,13 @@ router.put('/:id/reaction', asyncHandler(async (req, res) => {
   } else {
     await ListReaction.findOneAndUpdate(
       { listId: list._id, uid: req.user.uid },
-      { reaction },
+      {
+        $set: { reaction },
+        $setOnInsert: {
+          listId: list._id,
+          uid: req.user.uid
+        }
+      },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }

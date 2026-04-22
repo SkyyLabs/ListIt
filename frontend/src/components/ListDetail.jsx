@@ -607,16 +607,18 @@ export default function ListDetail({
           <button
             onClick={() => handleReactionChange('like')}
             disabled={!user}
-            className={`rounded px-2 py-1 ${listState.currentUserReaction === 'like' ? 'bg-green-200' : 'bg-white'}`}
+            aria-label="Thumbs up"
+            className={`rounded border px-2 py-1 ${listState.currentUserReaction === 'like' ? 'border-green-500 bg-green-200' : 'bg-white'}`}
           >
-            Like {listState.likesCount || 0}
+            👍 {listState.likesCount || 0}
           </button>
           <button
             onClick={() => handleReactionChange('dislike')}
             disabled={!user}
-            className={`rounded px-2 py-1 ${listState.currentUserReaction === 'dislike' ? 'bg-red-200' : 'bg-white'}`}
+            aria-label="Thumbs down"
+            className={`rounded border px-2 py-1 ${listState.currentUserReaction === 'dislike' ? 'border-red-500 bg-red-200' : 'bg-white'}`}
           >
-            Dislike {listState.dislikesCount || 0}
+            👎 {listState.dislikesCount || 0}
           </button>
         </div>
       </div>

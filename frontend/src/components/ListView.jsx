@@ -219,9 +219,18 @@ export default function ListView({ user }) {
       return;
     }
 
+    const draggedIndex = pinnedListOrder.indexOf(draggedPinnedId);
+    const targetIndex = pinnedListOrder.indexOf(targetListId);
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedPinnedId(null);
+      return;
+    }
+
     const nextOrder = pinnedListOrder.filter(id => id !== draggedPinnedId);
-    const targetIndex = nextOrder.indexOf(targetListId);
-    nextOrder.splice(targetIndex, 0, draggedPinnedId);
+    const insertIndex = draggedIndex < targetIndex
+      ? nextOrder.indexOf(targetListId) + 1
+      : nextOrder.indexOf(targetListId);
+    nextOrder.splice(insertIndex, 0, draggedPinnedId);
 
     const prevPinnedListOrder = pinnedListOrder;
     setPinnedListOrder(nextOrder);
@@ -278,7 +287,7 @@ export default function ListView({ user }) {
       }
       return compareStrings(right.updatedAt || '', left.updatedAt || '');
     });
-  const orderedLists = [...pinnedLists, ...personalLists, ...publicLists];
+  const regularLists = [...personalLists, ...publicLists];
 
   return (
     <>
@@ -350,23 +359,62 @@ export default function ListView({ user }) {
         />
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {orderedLists.map(list => (
+      {pinnedLists.length > 0 && (
+        <section className="mb-8">
+          <div className="mb-3 flex items-center gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-600">
+              Pinned Lists
+            </h2>
+            <div className="h-px flex-1 bg-gray-300" />
+          </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {pinnedLists.map(list => (
+              <ListDetail
+                key={list._id}
+                list={list}
+                isPinned
+                itemSortMode={itemSortMode}
+                onDragEnd={() => setDraggedPinnedId(null)}
+                onDragOver={event => event.preventDefault()}
+                onDragStart={() => setDraggedPinnedId(list._id)}
+                user={user}
+                onDelete={handleDelete}
+                onDrop={() => handlePinnedDrop(list._id)}
+                onItemSortModeChange={handleItemSortModeChange}
+                onListUpdate={updatedList => {
+                  setLists(prev =>
+                    prev.map(existingList =>
+                      existingList._id === updatedList._id
+                        ? { ...existingList, ...updatedList }
+                        : existingList
+                    )
+                  );
+                }}
+                onStartAddItem={handleStartAddItem}
+                onTogglePin={() => handleTogglePin(list._id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {pinnedLists.length > 0 && regularLists.length > 0 && (
+        <div className="mb-8 h-px w-full bg-gray-300" />
+      )}
+
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        {regularLists.map(list => (
           <ListDetail
             key={list._id}
             list={list}
-            isPinned={pinnedSet.has(list._id)}
+            isPinned={false}
             itemSortMode={itemSortMode}
             onDragEnd={() => setDraggedPinnedId(null)}
-            onDragOver={event => {
-              if (pinnedSet.has(list._id)) {
-                event.preventDefault();
-              }
-            }}
-            onDragStart={() => setDraggedPinnedId(list._id)}
+            onDragOver={() => {}}
+            onDragStart={() => {}}
             user={user}
             onDelete={handleDelete}
-            onDrop={() => handlePinnedDrop(list._id)}
+            onDrop={() => {}}
             onItemSortModeChange={handleItemSortModeChange}
             onListUpdate={updatedList => {
               setLists(prev =>
