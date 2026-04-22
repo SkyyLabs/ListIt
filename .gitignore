@@ -3,4 +3,15 @@ node_modules
 serviceAccountKey.json
 .env
 .env.development
-
+.env.local
+.env.test
+.env.production
+*.log
+coverage/
+.cache/
+.parcel-cache/
+.vercel/
+.idea/
+.vscode/
+frontend/build/
+Future_Plan.txt

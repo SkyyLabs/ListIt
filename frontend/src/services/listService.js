@@ -24,7 +24,19 @@ export async function addCollaborator(listId, payload) {
   return res.data;
 }
 
+export async function updateCollaboratorPermissions(listId, uid, permissions) {
+  const res = await api.put(`/lists/${listId}/collaborators/${uid}`, {
+    permissions
+  });
+  return res.data;
+}
+
 export async function removeCollaborator(listId, uid) {
   const res = await api.delete(`/lists/${listId}/collaborators/${uid}`);
+  return res.data;
+}
+
+export async function updateListReaction(listId, reaction) {
+  const res = await api.put(`/lists/${listId}/reaction`, { reaction });
   return res.data;
 }

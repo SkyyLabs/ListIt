@@ -1,23 +1,33 @@
 // frontend/src/components/Filters.js
 import React, { useState, useRef, useEffect } from 'react';
+import { sortUsers } from '../utils/sorting';
 
 export default function Filters({
   subCategories = [],
   collaborators  = [],
   filters = { subCategory: [], addedBy: [], done: undefined },
-  onChange
+  onChange,
+  sortMode = 'subcategory',
+  onSortModeChange
 }) {
-  const [open, setOpen] = useState({ sub: false, user: false, status: false });
+  const [open, setOpen] = useState({
+    sub: false,
+    user: false,
+    status: false,
+    sort: false
+  });
   const subRef = useRef(null);
   const userRef = useRef(null);
   const statusRef = useRef(null);
+  const sortRef = useRef(null);
 
   // close dropdown on outside click
   useEffect(() => {
     const refs = {
       sub: subRef,
       user: userRef,
-      status: statusRef
+      status: statusRef,
+      sort: sortRef
     };
 
     const handleOutside = e => {
@@ -51,8 +61,41 @@ export default function Filters({
     setOpen(o => ({ ...o, status: false }));
   };
 
+  const sortedCollaborators = sortUsers(collaborators);
+
   return (
     <div className="flex gap-4">
+      <div className="relative" ref={sortRef}>
+        <button
+          onClick={() => toggle('sort')}
+          className="text-sm bg-gray-200 px-3 py-1 rounded"
+        >
+          Sort: {sortMode === 'name' ? 'Name' : 'Subcategory'}
+        </button>
+        {open.sort && (
+          <div className="absolute mt-1 w-40 bg-white border rounded shadow p-2 z-10">
+            <button
+              onClick={() => {
+                onSortModeChange?.('subcategory');
+                setOpen(o => ({ ...o, sort: false }));
+              }}
+              className="block text-sm w-full text-left px-1 mb-1"
+            >
+              Subcategory
+            </button>
+            <button
+              onClick={() => {
+                onSortModeChange?.('name');
+                setOpen(o => ({ ...o, sort: false }));
+              }}
+              className="block text-sm w-full text-left px-1"
+            >
+              Name
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Subcategories */}
       <div className="relative" ref={subRef}>
         <button
@@ -100,7 +143,7 @@ export default function Filters({
             >
               All Users
             </button>
-            {collaborators.map(u => (
+            {sortedCollaborators.map(u => (
               <label key={u.uid} className="flex items-center text-sm mb-1">
                 <input
                   type="checkbox"

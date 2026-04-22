@@ -10,7 +10,8 @@ test('buildVisibleListFilter includes public, owner, and collaborator access', (
     $or: [
       { isPublic: true },
       { ownerUid: 'user-1' },
-      { collaborators: 'user-1' }
+      { collaborators: 'user-1' },
+      { 'collaborators.uid': 'user-1' }
     ]
   });
 });
@@ -20,7 +21,8 @@ test('buildVisibleListFilter carries an optional category filter', () => {
     $or: [
       { isPublic: true },
       { ownerUid: 'user-1' },
-      { collaborators: 'user-1' }
+      { collaborators: 'user-1' },
+      { 'collaborators.uid': 'user-1' }
     ],
     categoryId: 'cat-1'
   });

@@ -1,14 +1,25 @@
 const admin = require('firebase-admin');
 const Category = require('../models/Category');
 const Item = require('../models/Item');
-const { DEFAULT_CATEGORY_NAME } = require('../config/constants');
+const List = require('../models/List');
+const ListReaction = require('../models/ListReaction');
+const {
+  COLLABORATOR_PERMISSIONS,
+  DEFAULT_CATEGORY_NAME
+} = require('../config/constants');
 const { createHttpError } = require('../utils/http');
+const {
+  normalizeCollaborators,
+  sanitizePermissions
+} = require('../utils/listPermissions');
 
 function buildVisibleListFilter(uid, categoryId) {
   const filter = {
     $or: [
       { isPublic: true },
-      ...(uid ? [{ ownerUid: uid }, { collaborators: uid }] : [])
+      ...(uid
+        ? [{ ownerUid: uid }, { collaborators: uid }, { 'collaborators.uid': uid }]
+        : [])
     ]
   };
 
@@ -23,10 +34,8 @@ async function enrichLists(docs) {
   const uidSet = new Set();
   docs.forEach(list => {
     uidSet.add(list.ownerUid);
-    (list.collaborators || []).forEach(collaborator => {
-      const uid =
-        typeof collaborator === 'string' ? collaborator : collaborator.uid;
-      uidSet.add(uid);
+    normalizeCollaborators(list.collaborators || []).forEach(collaborator => {
+      uidSet.add(collaborator.uid);
     });
   });
 
@@ -61,11 +70,11 @@ async function enrichLists(docs) {
       email: userMap[list.ownerUid]?.email || null,
       displayName: userMap[list.ownerUid]?.displayName || null
     },
-    collaborators: (list.collaborators || []).map(collaborator => {
-      const uid =
-        typeof collaborator === 'string' ? collaborator : collaborator.uid;
+    collaborators: normalizeCollaborators(list.collaborators || []).map(collaborator => {
+      const uid = collaborator.uid;
       return {
         uid,
+        permissions: collaborator.permissions,
         email: userMap[uid]?.email || null,
         displayName: userMap[uid]?.displayName || null
       };
@@ -122,12 +131,181 @@ async function deleteListWithItems(list) {
   await list.remove();
 }
 
+async function addSubCategoryToCategory(categoryId, subCategory) {
+  if (!categoryId || !subCategory) {
+    return;
+  }
+
+  const category = await Category.findById(categoryId);
+  if (!category) {
+    return;
+  }
+
+  const exists = category.subCategories.some(
+    existingSubCategory =>
+      existingSubCategory.toLowerCase() === subCategory.toLowerCase()
+  );
+  if (!exists) {
+    category.subCategories.push(subCategory);
+    await category.save();
+  }
+}
+
+async function ensureStructuredCollaborators(list) {
+  const normalized = normalizeCollaborators(list.collaborators || []);
+  const changed =
+    normalized.length !== (list.collaborators || []).length ||
+    normalized.some((collaborator, index) => {
+      const current = list.collaborators?.[index];
+      return typeof current === 'string'
+        || current?.uid !== collaborator.uid
+        || JSON.stringify(current?.permissions || []) !== JSON.stringify(collaborator.permissions);
+    });
+
+  if (changed) {
+    list.collaborators = normalized;
+    await list.save();
+  }
+
+  return list;
+}
+
+function createCollaboratorEntry(uid, permissions = [COLLABORATOR_PERMISSIONS.READ]) {
+  return {
+    uid,
+    permissions: sanitizePermissions(permissions.length ? permissions : [COLLABORATOR_PERMISSIONS.READ])
+  };
+}
+
+async function getUserActivityMap(uids = []) {
+  const normalizedUids = Array.from(new Set(uids.filter(Boolean)));
+  if (!normalizedUids.length) {
+    return {};
+  }
+
+  const lists = await List.find({
+    $or: [
+      { ownerUid: { $in: normalizedUids } },
+      { collaborators: { $in: normalizedUids } },
+      { 'collaborators.uid': { $in: normalizedUids } }
+    ]
+  })
+    .select('ownerUid collaborators')
+    .lean();
+
+  const activityMap = Object.fromEntries(normalizedUids.map(uid => [uid, 0]));
+
+  lists.forEach(list => {
+    if (activityMap[list.ownerUid] !== undefined) {
+      activityMap[list.ownerUid] += 1;
+    }
+
+    normalizeCollaborators(list.collaborators || []).forEach(collaborator => {
+      if (activityMap[collaborator.uid] !== undefined) {
+        activityMap[collaborator.uid] += 1;
+      }
+    });
+  });
+
+  return activityMap;
+}
+
+function getActivityWeight(activityCount = 0) {
+  if (activityCount >= 6) {
+    return 3;
+  }
+  if (activityCount >= 3) {
+    return 2;
+  }
+  return 1;
+}
+
+async function getReactionSummaryMap(lists, currentUserUid) {
+  const listIds = lists.map(list => String(list._id));
+  if (!listIds.length) {
+    return {};
+  }
+
+  const reactions = await ListReaction.find({
+    listId: { $in: listIds }
+  }).lean();
+
+  const activityMap = await getUserActivityMap([
+    ...lists.map(list => list.ownerUid),
+    ...reactions.map(reaction => reaction.uid)
+  ]);
+
+  const reactionSummaryMap = {};
+  lists.forEach(list => {
+    const ownerBaselineScore = getActivityWeight(activityMap[list.ownerUid] || 0);
+    reactionSummaryMap[String(list._id)] = {
+      likesCount: 0,
+      dislikesCount: 0,
+      reactionScore: 0,
+      ownerBaselineScore,
+      rankingScore: ownerBaselineScore,
+      currentUserReaction: null
+    };
+  });
+
+  reactions.forEach(reaction => {
+    const listKey = String(reaction.listId);
+    const summary = reactionSummaryMap[listKey];
+    if (!summary) {
+      return;
+    }
+
+    const weight = getActivityWeight(activityMap[reaction.uid] || 0);
+    if (reaction.reaction === 'like') {
+      summary.likesCount += 1;
+      summary.reactionScore += weight;
+    } else if (reaction.reaction === 'dislike') {
+      summary.dislikesCount += 1;
+      summary.reactionScore -= weight;
+    }
+
+    if (currentUserUid && reaction.uid === currentUserUid) {
+      summary.currentUserReaction = reaction.reaction;
+    }
+  });
+
+  Object.values(reactionSummaryMap).forEach(summary => {
+    summary.rankingScore = summary.ownerBaselineScore + summary.reactionScore;
+  });
+
+  return reactionSummaryMap;
+}
+
+async function enrichListsWithStats(docs, currentUserUid) {
+  const lists = await enrichLists(docs);
+  const reactionSummaryMap = await getReactionSummaryMap(lists, currentUserUid);
+
+  return lists.map(list => ({
+    ...list,
+    ...(reactionSummaryMap[String(list._id)] || {
+      likesCount: 0,
+      dislikesCount: 0,
+      reactionScore: 0,
+      ownerBaselineScore: 1,
+      rankingScore: 1,
+      currentUserReaction: null
+    })
+  }));
+}
+
 module.exports = {
+  addSubCategoryToCategory,
   assertListOwner,
   buildVisibleListFilter,
   countForeignItems,
+  createCollaboratorEntry,
   deleteListWithItems,
+  ensureStructuredCollaborators,
   enrichLists,
+  enrichListsWithStats,
   findOrCreateCategoryByName,
+  getActivityWeight,
+  getReactionSummaryMap,
+  getUserActivityMap,
   resolveCollaboratorUid
 };

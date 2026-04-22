@@ -3,11 +3,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import NewListModal from './NewListModal';
 import ListDetail from './ListDetail';
 import CategoryManager from './CategoryManager';
-import { DEFAULT_SHOW_PUBLIC } from '../config/constants';
+import {
+  DEFAULT_ITEM_SORT_MODE,
+  DEFAULT_SHOW_PINNED_ONLY,
+  DEFAULT_SHOW_PUBLIC
+} from '../config/constants';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchCategories } from '../services/categoryService';
 import { fetchLists } from '../services/listService';
 import { getVisibleLists } from '../utils/listVisibility';
+import { compareStrings } from '../utils/sorting';
 import {
   fetchPreferences,
   updatePreferences
@@ -18,8 +23,13 @@ export default function ListView({ user }) {
   const [categories, setCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showPublic, setShowPublic] = useState(DEFAULT_SHOW_PUBLIC);
+  const [showPinnedOnly, setShowPinnedOnly] = useState(DEFAULT_SHOW_PINNED_ONLY);
+  const [itemSortMode, setItemSortMode] = useState(DEFAULT_ITEM_SORT_MODE);
+  const [pinnedListIds, setPinnedListIds] = useState([]);
+  const [pinnedListOrder, setPinnedListOrder] = useState([]);
   const [showNewList, setShowNewList] = useState(false);
   const [showCatManager, setShowCatManager] = useState(false);
+  const [draggedPinnedId, setDraggedPinnedId] = useState(null);
   const isMountedRef = useRef(true);
   const preferenceRequestRef = useRef(0);
   const { isAdmin } = useAuth();
@@ -82,15 +92,27 @@ export default function ListView({ user }) {
         .then(pref => {
           if (!cancelled) {
             setShowPublic(pref.showPublic);
+            setShowPinnedOnly(pref.showPinnedOnly || DEFAULT_SHOW_PINNED_ONLY);
+            setItemSortMode(pref.itemSortMode || DEFAULT_ITEM_SORT_MODE);
+            setPinnedListIds(pref.pinnedListIds || []);
+            setPinnedListOrder(pref.pinnedListOrder || []);
           }
         })
         .catch(() => {
           if (!cancelled) {
             setShowPublic(DEFAULT_SHOW_PUBLIC);
+            setShowPinnedOnly(DEFAULT_SHOW_PINNED_ONLY);
+            setItemSortMode(DEFAULT_ITEM_SORT_MODE);
+            setPinnedListIds([]);
+            setPinnedListOrder([]);
           }
         });
     } else {
       setShowPublic(DEFAULT_SHOW_PUBLIC);
+      setShowPinnedOnly(DEFAULT_SHOW_PINNED_ONLY);
+      setItemSortMode(DEFAULT_ITEM_SORT_MODE);
+      setPinnedListIds([]);
+      setPinnedListOrder([]);
     }
 
     return () => {
@@ -116,6 +138,100 @@ export default function ListView({ user }) {
     }
   };
 
+  const persistPreferencePatch = async (nextPrefs, rollback) => {
+    if (!user) {
+      return;
+    }
+
+    const requestId = preferenceRequestRef.current + 1;
+    preferenceRequestRef.current = requestId;
+    try {
+      await updatePreferences(nextPrefs);
+    } catch (err) {
+      if (isMountedRef.current && preferenceRequestRef.current === requestId) {
+        rollback();
+      }
+      console.error(err);
+    }
+  };
+
+  const handleShowPinnedOnlyChange = e => {
+    const val = e.target.checked;
+    const prevVal = showPinnedOnly;
+    setShowPinnedOnly(val);
+    persistPreferencePatch(
+      { showPinnedOnly: val },
+      () => setShowPinnedOnly(prevVal)
+    );
+  };
+
+  const handleItemSortModeChange = nextSortMode => {
+    const prevSortMode = itemSortMode;
+    setItemSortMode(nextSortMode);
+    persistPreferencePatch(
+      { itemSortMode: nextSortMode },
+      () => setItemSortMode(prevSortMode)
+    );
+  };
+
+  const handleTogglePin = listId => {
+    const isPinned = pinnedListIds.includes(listId);
+    const nextPinnedListIds = isPinned
+      ? pinnedListIds.filter(id => id !== listId)
+      : [...pinnedListIds, listId];
+    const nextPinnedListOrder = isPinned
+      ? pinnedListOrder.filter(id => id !== listId)
+      : [...pinnedListOrder.filter(id => id !== listId), listId];
+
+    const prevPinnedListIds = pinnedListIds;
+    const prevPinnedListOrder = pinnedListOrder;
+    setPinnedListIds(nextPinnedListIds);
+    setPinnedListOrder(nextPinnedListOrder);
+    persistPreferencePatch(
+      {
+        pinnedListIds: nextPinnedListIds,
+        pinnedListOrder: nextPinnedListOrder
+      },
+      () => {
+        setPinnedListIds(prevPinnedListIds);
+        setPinnedListOrder(prevPinnedListOrder);
+      }
+    );
+  };
+
+  const handleDelete = deletedListId => {
+    const nextPinnedListIds = pinnedListIds.filter(id => id !== deletedListId);
+    const nextPinnedListOrder = pinnedListOrder.filter(id => id !== deletedListId);
+    setLists(prev => prev.filter(list => list._id !== deletedListId));
+    setPinnedListIds(nextPinnedListIds);
+    setPinnedListOrder(nextPinnedListOrder);
+    if (user && (nextPinnedListIds.length !== pinnedListIds.length
+      || nextPinnedListOrder.length !== pinnedListOrder.length)) {
+      updatePreferences({
+        pinnedListIds: nextPinnedListIds,
+        pinnedListOrder: nextPinnedListOrder
+      }).catch(err => console.error(err));
+    }
+  };
+
+  const handlePinnedDrop = targetListId => {
+    if (!draggedPinnedId || draggedPinnedId === targetListId) {
+      return;
+    }
+
+    const nextOrder = pinnedListOrder.filter(id => id !== draggedPinnedId);
+    const targetIndex = nextOrder.indexOf(targetListId);
+    nextOrder.splice(targetIndex, 0, draggedPinnedId);
+
+    const prevPinnedListOrder = pinnedListOrder;
+    setPinnedListOrder(nextOrder);
+    setDraggedPinnedId(null);
+    persistPreferencePatch(
+      { pinnedListOrder: nextOrder },
+      () => setPinnedListOrder(prevPinnedListOrder)
+    );
+  };
+
   // Ensure NewListModal is closed when adding an item
   const handleStartAddItem = () => {
     setShowNewList(false);
@@ -124,6 +240,45 @@ export default function ListView({ user }) {
   // The API returns all lists visible to the current request. This client-side
   // pass applies the user's personal "Show Public" preference on top of that.
   const visible = getVisibleLists(lists, user, showPublic);
+  const visibleCategories = [...categories].sort((left, right) =>
+    compareStrings(left.name, right.name)
+  );
+  const pinnedSet = new Set(pinnedListIds);
+  const filteredVisible = showPinnedOnly
+    ? visible.filter(list => pinnedSet.has(list._id))
+    : visible;
+  const pinnedVisible = filteredVisible.filter(list => pinnedSet.has(list._id));
+  const nonPinnedVisible = filteredVisible.filter(list => !pinnedSet.has(list._id));
+  const orderedPinnedIds = pinnedListOrder
+    .filter(listId => pinnedVisible.some(list => list._id === listId));
+  const pinnedLists = [
+    ...orderedPinnedIds
+      .map(listId => pinnedVisible.find(list => list._id === listId))
+      .filter(Boolean),
+    ...pinnedVisible.filter(list => !orderedPinnedIds.includes(list._id))
+  ];
+  const personalLists = nonPinnedVisible.filter(list => {
+    const ownerUid = list.owner?.uid ?? list.ownerUid;
+    const collaboratorUids = (list.collaborators || []).map(
+      collaborator => collaborator.uid || collaborator
+    );
+    return user?.uid === ownerUid || collaboratorUids.includes(user?.uid);
+  });
+  const publicLists = nonPinnedVisible
+    .filter(list => !personalLists.some(personalList => personalList._id === list._id))
+    .sort((left, right) => {
+      if ((right.rankingScore || 0) !== (left.rankingScore || 0)) {
+        return (right.rankingScore || 0) - (left.rankingScore || 0);
+      }
+      if ((right.reactionScore || 0) !== (left.reactionScore || 0)) {
+        return (right.reactionScore || 0) - (left.reactionScore || 0);
+      }
+      if ((right.likesCount || 0) !== (left.likesCount || 0)) {
+        return (right.likesCount || 0) - (left.likesCount || 0);
+      }
+      return compareStrings(right.updatedAt || '', left.updatedAt || '');
+    });
+  const orderedLists = [...pinnedLists, ...personalLists, ...publicLists];
 
   return (
     <>
@@ -158,6 +313,18 @@ export default function ListView({ user }) {
           </label>
         )}
 
+        {user && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={showPinnedOnly}
+              onChange={handleShowPinnedOnlyChange}
+              className="h-4 w-4"
+            />
+            Pinned Only
+          </label>
+        )}
+
         <label className="flex items-center gap-2 text-sm">
           Category:
           <select
@@ -166,7 +333,7 @@ export default function ListView({ user }) {
             className="ml-1 border px-2 py-1 rounded-md text-sm"
           >
             <option value="">All</option>
-            {categories.map(c => (
+            {visibleCategories.map(c => (
               <option key={c._id} value={c._id}>
                 {c.name}
               </option>
@@ -184,20 +351,41 @@ export default function ListView({ user }) {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {visible.map(list => (
+        {orderedLists.map(list => (
           <ListDetail
             key={list._id}
             list={list}
+            isPinned={pinnedSet.has(list._id)}
+            itemSortMode={itemSortMode}
+            onDragEnd={() => setDraggedPinnedId(null)}
+            onDragOver={event => {
+              if (pinnedSet.has(list._id)) {
+                event.preventDefault();
+              }
+            }}
+            onDragStart={() => setDraggedPinnedId(list._id)}
             user={user}
-            onDelete={id => setLists(prev => prev.filter(l => l._id !== id))}
+            onDelete={handleDelete}
+            onDrop={() => handlePinnedDrop(list._id)}
+            onItemSortModeChange={handleItemSortModeChange}
+            onListUpdate={updatedList => {
+              setLists(prev =>
+                prev.map(existingList =>
+                  existingList._id === updatedList._id
+                    ? { ...existingList, ...updatedList }
+                    : existingList
+                )
+              );
+            }}
             onStartAddItem={handleStartAddItem}
+            onTogglePin={() => handleTogglePin(list._id)}
           />
         ))}
       </div>
 
       {showNewList && (
         <NewListModal
-          categories={categories}
+          categories={visibleCategories}
           onCreated={list => setLists(prev => [list, ...prev])}
           onClose={() => setShowNewList(false)}
         />

@@ -1,0 +1,146 @@
+{
+  "title": "User-Selectable Item Sorting, Smarter Filters, Editable Items, Permissioned Collaboration, Reactions, and Reorderable Pins",
+  "summary": [
+    "Users can sort items by Name or Subcategory.",
+    "Filter subcategories show only subcategories currently used by items in that list.",
+    "Item subcategory pickers still show the full category subcategory catalog.",
+    "All filters and dropdown-style option lists are alphabetically sorted.",
+    "Existing edit mode is preserved and extended to allow editing item text and subcategory.",
+    "Collaborators move to a permission-based model.",
+    "Each user can pin lists, drag to reorder pinned lists, and persist that order.",
+    "Each user can like/dislike any list; ranking is maintained for all lists and used for public ordering and future search relevance."
+  ],
+  "finalized_decisions": {
+    "item_sort_modes": {
+      "name": "Sort by text ascending, then subCategory ascending, then _id.",
+      "subcategory": "Sort by subCategory ascending, then text ascending, then _id."
+    },
+    "default_item_sort_mode": "subcategory",
+    "filter_subcategories": "Only subcategories actually used by current list items are shown in filters.",
+    "item_subcategory_picker": "Shows the full category subcategory catalog.",
+    "collaborator_permissions": [
+      "READ",
+      "ADD_REMOVE",
+      "EDIT_ALL"
+    ],
+    "default_collaborator_permissions": [
+      "READ"
+    ],
+    "permission_rules": {
+      "all_collaborators": "Can always maintain their own completion state.",
+      "ADD_REMOVE": "Can add and remove items.",
+      "EDIT_ALL": "Can edit item metadata, enter edit mode, invite collaborators, and update collaborator permissions.",
+      "owner_only": "Only owners can remove collaborators. Owners always have full access."
+    },
+    "pins": {
+      "per_user": true,
+      "rendering": "Pinned lists render first.",
+      "pinned_only_toggle": true,
+      "drag_reorder": true,
+      "persistent_order": true,
+      "drag_handle_position": "top-left dotted handle"
+    },
+    "reactions": {
+      "scope": "Allowed on all lists, public and private.",
+      "per_user_state": "like, dislike, or none",
+      "position": "bottom-right of each list card"
+    },
+    "ranking": {
+      "applies_internally_to_all_lists": true,
+      "public_lists_primary_usage": "Discovery ordering and future search result ranking.",
+      "owner_baseline_score": "Based on owner activity: lists owned + lists collaborated.",
+      "voter_weight": "Based on voter activity: lists owned + lists collaborated.",
+      "bucket_weights": {
+        "0_2": 1,
+        "3_5": 2,
+        "6_plus": 3
+      },
+      "reaction_score": "weightedLikes - weightedDislikes",
+      "ranking_score": "ownerBaselineScore + reactionScore",
+      "continuity": [
+        "If private becomes public, existing ranking remains and owner baseline applies even with no reactions.",
+        "If public becomes private, likes and dislikes remain stored."
+      ]
+    }
+  },
+  "implementation_changes": {
+    "frontend": [
+      "Add item sort control with Name and Subcategory modes.",
+      "Persist item sort mode in user preferences.",
+      "Split subcategory sources into filterSubCategories and availableSubCategories.",
+      "Alphabetically sort filter options, dropdowns, collaborator lists, and suggestion lists using a shared helper.",
+      "Extend edit mode to support item text and subcategory editing.",
+      "Add collaborator permission controls in edit mode for owners and EDIT_ALL users.",
+      "Add pin/unpin UI, pinned-only toggle, drag handle, and persistent pinned ordering.",
+      "Add like/dislike controls at bottom-right of list cards.",
+      "Render pinned lists before non-pinned lists."
+    ],
+    "backend": [
+      "Change List.collaborators from uid strings to structured objects with permissions.",
+      "Add normalization for legacy collaborator arrays to default READ.",
+      "Add PATCH /items/:id for text and subCategory updates.",
+      "Add PUT /lists/:id/collaborators/:collabUid for permission updates.",
+      "Extend invite flow to accept optional permissions.",
+      "Allow EDIT_ALL users to invite collaborators and update collaborator permissions.",
+      "Restrict collaborator removal to owners only.",
+      "Add ListReaction model with unique index on (listId, uid).",
+      "Add PUT /lists/:id/reaction endpoint.",
+      "Extend preferences with itemSortMode, pinnedListIds, pinnedListOrder, and showPinnedOnly.",
+      "Return likesCount, dislikesCount, reactionScore, ownerBaselineScore, rankingScore, and currentUserReaction in list responses."
+    ],
+    "data_model": [
+      "UserPreference gains itemSortMode, pinnedListIds, pinnedListOrder, and showPinnedOnly.",
+      "List.collaborators becomes [{ uid, permissions }].",
+      "New ListReaction collection stores per-user reactions."
+    ]
+  },
+  "ordering_rules": {
+    "list_page_order": [
+      "Apply visibility and existing filters.",
+      "Apply pinned-only filter if enabled.",
+      "Pinned lists first, ordered by pinnedListOrder.",
+      "Non-pinned owned/collaborated lists next.",
+      "Non-pinned public-only lists sorted by rankingScore descending."
+    ],
+    "public_tie_breakers": [
+      "Higher rankingScore",
+      "Higher reactionScore",
+      "Higher raw likesCount",
+      "More recent updatedAt"
+    ]
+  },
+  "tests": {
+    "frontend": [
+      "Switching item sort mode changes ordering correctly.",
+      "Sort mode persists per logged-in user.",
+      "Filter subcategories include only subcategories currently used by list items.",
+      "Add-item and edit-item subcategory pickers still show full category subcategory list.",
+      "All dropdown/filter options are alphabetically sorted.",
+      "Edit mode allows item text/subcategory edits and preserves cancel behavior.",
+      "READ collaborator can only view and maintain own progress.",
+      "ADD_REMOVE collaborator can add/remove items and maintain own progress.",
+      "EDIT_ALL collaborator can edit items, invite collaborators, update permissions, and maintain own progress.",
+      "Only owner can remove collaborators.",
+      "Pinned lists can be reordered by drag and persist after reload.",
+      "Like/dislike controls render in the bottom-right and reflect current user state."
+    ],
+    "backend": [
+      "Legacy collaborator string arrays normalize to default READ behavior.",
+      "All collaborators can toggle their own done state regardless of permissions.",
+      "ADD_REMOVE allows item create/delete.",
+      "EDIT_ALL allows item metadata edits, invite collaborator, and permission updates.",
+      "Only owner can remove collaborators.",
+      "PATCH /items/:id updates text and/or subCategory and upserts new subcategories into category catalog.",
+      "Reaction endpoint enforces one active reaction per user per list.",
+      "Ranking score includes ownerBaselineScore plus weighted reactionScore.",
+      "Reactions and ranking survive public/private flips.",
+      "List fetch returns ranking metadata for all lists."
+    ],
+    "end_to_end": [
+      "Private list with no reactions becomes public and ranks using owner baseline.",
+      "Public/private flips preserve prior likes/dislikes and ranking continuity.",
+      "Pinned lists stay first and keep user-defined drag order across sessions.",
+      "Search-style ordering can later reuse rankingScore directly for matched public lists."
+    ]
+  }
+}

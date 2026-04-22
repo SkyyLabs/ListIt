@@ -1,12 +1,19 @@
 import React from 'react';
+import { COLLABORATOR_PERMISSIONS } from '../../config/constants';
+import { getUserDisplayLabel } from '../../utils/sorting';
 
 export default function CollaboratorPanel({
   collaborators,
   disabled,
   inviteEmail,
-  isOwner,
+  invitePermissions,
+  canInvite,
+  canManagePermissions,
+  canRemoveCollaborator,
   onInvite,
   onInviteEmailChange,
+  onInvitePermissionToggle,
+  onPermissionChange,
   onRemoveCollaborator,
   ownerUid,
   showCollaborators,
@@ -31,14 +38,37 @@ export default function CollaboratorPanel({
               {collaborators.map(collaborator => (
                 <li
                   key={collaborator.uid}
-                  className="flex items-center justify-between text-xs sm:text-sm"
+                  className="flex items-start justify-between gap-3 text-xs sm:text-sm"
                 >
-                  <span>
-                    {collaborator.displayName ||
-                      collaborator.email?.split('@')[0] ||
-                      collaborator.uid}
-                  </span>
-                  {isOwner && collaborator.uid !== ownerUid && (
+                  <div className="flex-1">
+                    <div>{getUserDisplayLabel(collaborator)}</div>
+                    {collaborator.uid !== ownerUid && (
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {Object.values(COLLABORATOR_PERMISSIONS).map(permission => (
+                          <label key={permission} className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={(collaborator.permissions || []).includes(permission)}
+                              disabled={
+                                permission === COLLABORATOR_PERMISSIONS.READ
+                                || !canManagePermissions
+                                || disabled
+                              }
+                              onChange={event =>
+                                onPermissionChange(
+                                  collaborator.uid,
+                                  permission,
+                                  event.target.checked
+                                )
+                              }
+                            />
+                            {permission}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {canRemoveCollaborator && collaborator.uid !== ownerUid && (
                     <button
                       onClick={() => onRemoveCollaborator(collaborator.uid)}
                       disabled={disabled}
@@ -51,22 +81,41 @@ export default function CollaboratorPanel({
                 </li>
               ))}
             </ul>
-          ) : (
-            <div className="text-xs sm:text-sm text-gray-500">
-              No collaborators
-            </div>
-          )}
-          {isOwner && (
+              ) : (
+                <div className="text-xs sm:text-sm text-gray-500">
+                  No collaborators
+                </div>
+              )}
+          {canInvite && (
             <form onSubmit={onInvite} className="flex gap-2">
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={e => onInviteEmailChange(e.target.value)}
-                placeholder="Invite by email"
-                disabled={disabled}
-                className="flex-1 border rounded px-2 py-1 text-xs sm:text-sm"
-                required
-              />
+              <div className="flex-1 space-y-2">
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={e => onInviteEmailChange(e.target.value)}
+                  placeholder="Invite by email"
+                  disabled={disabled}
+                  className="w-full border rounded px-2 py-1 text-xs sm:text-sm"
+                  required
+                />
+                <div className="flex flex-wrap gap-2">
+                  {Object.values(COLLABORATOR_PERMISSIONS).map(permission => (
+                    <label key={permission} className="flex items-center gap-1 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={invitePermissions.includes(permission)}
+                        disabled={
+                          permission === COLLABORATOR_PERMISSIONS.READ || disabled
+                        }
+                        onChange={event =>
+                          onInvitePermissionToggle(permission, event.target.checked)
+                        }
+                      />
+                      {permission}
+                    </label>
+                  ))}
+                </div>
+              </div>
               <button
                 type="submit"
                 disabled={disabled}

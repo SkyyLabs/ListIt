@@ -2,6 +2,7 @@
 const express = require('express');
 const router  = express.Router();
 const List    = require('../models/List');
+const ListReaction = require('../models/ListReaction');
 const { authenticate, optionalAuth } = require('../middlewares/auth');
 const { asyncHandler, createHttpError } = require('../utils/http');
 const { hasAdminRole } = require('../utils/roles');
@@ -9,8 +10,10 @@ const {
   assertListOwner,
   buildVisibleListFilter,
   countForeignItems,
+  createCollaboratorEntry,
   deleteListWithItems,
-  enrichLists,
+  enrichListsWithStats,
+  ensureStructuredCollaborators,
   findOrCreateCategoryByName,
   resolveCollaboratorUid
 } = require('../services/listService');
@@ -19,6 +22,12 @@ const {
   optionalTrimmedString,
   requireTrimmedString
 } = require('../utils/validation');
+const {
+  canViewList,
+  canInviteCollaborators,
+  canRemoveCollaborator,
+  canUpdateCollaboratorPermissions
+} = require('../utils/listPermissions');
 
 /**
  * GET /lists
@@ -34,7 +43,7 @@ router.get('/', optionalAuth, asyncHandler(async (req, res) => {
 
   let lists;
   try {
-    lists = await enrichLists(docs);
+    lists = await enrichListsWithStats(docs, uid);
   } catch (err) {
     console.error('⚠️ enrichLists threw, returning raw docs', err);
     lists = docs;
@@ -127,7 +136,10 @@ router.post('/:id/collaborators', asyncHandler(async (req, res) => {
   const list = await List.findById(req.params.id);
   if (!list) throw createHttpError(404, 'List not found');
 
-  assertListOwner(list, req.user.uid);
+  await ensureStructuredCollaborators(list);
+  if (!canInviteCollaborators(list, req.user.uid)) {
+    throw createHttpError(403, 'Forbidden');
+  }
 
   const email = optionalTrimmedString(
     req.body.email,
@@ -137,11 +149,46 @@ router.post('/:id/collaborators', asyncHandler(async (req, res) => {
     email,
     getTrimmedString(req.body.uid)
   );
+  const permissions = Array.isArray(req.body.permissions)
+    ? req.body.permissions
+    : undefined;
 
-  if (!list.collaborators.includes(collabUid)) {
-    list.collaborators.push(collabUid);
+  const existingIndex = list.collaborators.findIndex(collaborator =>
+    collaborator.uid === collabUid || collaborator === collabUid
+  );
+  if (existingIndex === -1) {
+    list.collaborators.push(createCollaboratorEntry(collabUid, permissions));
+  } else if (permissions) {
+    list.collaborators[existingIndex] = createCollaboratorEntry(collabUid, permissions);
     await list.save();
   }
+  if (existingIndex === -1) {
+    await list.save();
+  }
+  return res.json(list);
+}));
+
+router.put('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => {
+  const list = await List.findById(req.params.id);
+  if (!list) throw createHttpError(404, 'List not found');
+
+  await ensureStructuredCollaborators(list);
+  if (!canUpdateCollaboratorPermissions(list, req.user.uid)) {
+    throw createHttpError(403, 'Forbidden');
+  }
+
+  const collaboratorIndex = list.collaborators.findIndex(
+    collaborator => collaborator.uid === req.params.collabUid
+  );
+  if (collaboratorIndex === -1) {
+    throw createHttpError(404, 'Collaborator not found');
+  }
+
+  list.collaborators[collaboratorIndex] = createCollaboratorEntry(
+    req.params.collabUid,
+    req.body.permissions
+  );
+  await list.save();
   return res.json(list);
 }));
 
@@ -153,13 +200,43 @@ router.delete('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => 
   const list = await List.findById(req.params.id);
   if (!list) throw createHttpError(404, 'List not found');
 
-  assertListOwner(list, req.user.uid);
+  await ensureStructuredCollaborators(list);
+  if (!canRemoveCollaborator(list, req.user.uid)) {
+    throw createHttpError(403, 'Forbidden');
+  }
 
   list.collaborators = list.collaborators.filter(
-    u => u !== req.params.collabUid
+    collaborator => collaborator.uid !== req.params.collabUid
   );
   await list.save();
   return res.json(list);
+}));
+
+router.put('/:id/reaction', asyncHandler(async (req, res) => {
+  const list = await List.findById(req.params.id);
+  if (!list) throw createHttpError(404, 'List not found');
+  await ensureStructuredCollaborators(list);
+  if (!canViewList(list, req.user.uid)) {
+    throw createHttpError(403, 'Forbidden');
+  }
+
+  const reaction = req.body.reaction;
+  if (reaction !== null && reaction !== 'like' && reaction !== 'dislike') {
+    throw createHttpError(400, 'reaction must be like, dislike, or null');
+  }
+
+  if (reaction === null) {
+    await ListReaction.deleteOne({ listId: list._id, uid: req.user.uid });
+  } else {
+    await ListReaction.findOneAndUpdate(
+      { listId: list._id, uid: req.user.uid },
+      { reaction },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+  }
+
+  const [enrichedList] = await enrichListsWithStats([list.toObject()], req.user.uid);
+  return res.json(enrichedList);
 }));
 
 module.exports = router;

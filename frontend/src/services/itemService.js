@@ -15,6 +15,11 @@ export async function updateItemDone(itemId, done) {
   return res.data;
 }
 
+export async function updateItem(itemId, payload) {
+  const res = await api.patch(`/items/${itemId}`, payload);
+  return res.data;
+}
+
 export async function removeItem(itemId) {
   await api.delete(`/items/${itemId}`);
 }

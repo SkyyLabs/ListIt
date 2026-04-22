@@ -8,21 +8,19 @@ const { authenticate, optionalAuth } = require('../middlewares/auth')
 const { asyncHandler, createHttpError } = require('../utils/http')
 const { hasAdminRole } = require('../utils/roles')
 const {
+  addSubCategoryToCategory
+} = require('../services/listService')
+const {
   optionalTrimmedString,
   requireBoolean,
   requireTrimmedString
 } = require('../utils/validation')
-
-function canViewList(list, uid) {
-  return Boolean(
-    list.isPublic ||
-    (uid && (list.ownerUid === uid || list.collaborators.includes(uid)))
-  )
-}
-
-function canEditList(list, uid) {
-  return Boolean(uid && (list.ownerUid === uid || list.collaborators.includes(uid)))
-}
+const {
+  canAddRemoveItems,
+  canEditAll,
+  canToggleProgress,
+  canViewList
+} = require('../utils/listPermissions')
 
 async function getListOrThrow(listId) {
   const list = await List.findById(listId).lean()
@@ -74,7 +72,7 @@ router.post('/', authenticate, asyncHandler(async (req, res) => {
     'Sub-category must be a non-empty string'
   )
   const parentList = await getListOrThrow(listId)
-  if (!canEditList(parentList, req.user.uid)) {
+  if (!canAddRemoveItems(parentList, req.user.uid)) {
     throw createHttpError(403, 'Forbidden')
   }
 
@@ -88,20 +86,7 @@ router.post('/', authenticate, asyncHandler(async (req, res) => {
   const saved = await item.save()
 
   // 2) If a subCategory was provided, add it to the Category
-  if (saved.subCategory) {
-    if (parentList?.categoryId) {
-      const cat = await Category.findById(parentList.categoryId)
-      if (cat) {
-        const exists = cat.subCategories.some(
-          sc => sc.toLowerCase() === saved.subCategory.toLowerCase()
-        )
-        if (!exists) {
-          cat.subCategories.push(saved.subCategory)
-          await cat.save()
-        }
-      }
-    }
-  }
+  await addSubCategoryToCategory(parentList.categoryId, saved.subCategory)
 
   return res.status(201).json(saved)
 }))
@@ -122,7 +107,7 @@ router.put('/:id', authenticate, asyncHandler(async (req, res) => {
   const uid = req.user.uid
   const done = requireBoolean(req.body.done, 'done must be a boolean')
   const parentList = await getListOrThrow(item.listId)
-  if (!canEditList(parentList, uid)) {
+  if (!canToggleProgress(parentList, uid)) {
     throw createHttpError(403, 'Forbidden')
   }
 
@@ -142,6 +127,36 @@ router.put('/:id', authenticate, asyncHandler(async (req, res) => {
   return res.json(response)
 }))
 
+router.patch('/:id', authenticate, asyncHandler(async (req, res) => {
+  const item = await Item.findById(req.params.id)
+  if (!item) {
+    throw createHttpError(404, 'Item not found')
+  }
+
+  const parentList = await getListOrThrow(item.listId)
+  if (!canEditAll(parentList, req.user.uid)) {
+    throw createHttpError(403, 'Forbidden')
+  }
+
+  const text = optionalTrimmedString(req.body.text, 'Item text is required')
+  const subCategory = optionalTrimmedString(
+    req.body.subCategory,
+    'Sub-category must be a non-empty string'
+  )
+
+  if (text !== undefined) {
+    item.text = text
+  }
+  if (subCategory !== undefined) {
+    item.subCategory = subCategory
+  }
+
+  const updated = await item.save()
+  await addSubCategoryToCategory(parentList.categoryId, updated.subCategory)
+
+  return res.json(updated)
+}))
+
 /**
  * DELETE /items/:id
  * Only the user who added the item (or admin) can delete it.
@@ -156,13 +171,9 @@ router.delete('/:id', authenticate, asyncHandler(async (req, res) => {
   const isAdmin = hasAdminRole(req.user)
   if (!isAdmin) {
     const parentList = await getListOrThrow(item.listId)
-    if (!canEditList(parentList, uid)) {
+    if (!canAddRemoveItems(parentList, uid)) {
       throw createHttpError(403, 'Forbidden')
     }
-  }
-
-  if (item.addedBy !== uid && !isAdmin) {
-    throw createHttpError(403, "Cannot delete another user's item")
   }
 
   await item.remove()

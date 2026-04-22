@@ -1,11 +1,15 @@
 import React from 'react';
 
 export default function ListItems({
+  availableSubCategories,
+  canEditItemMetadata,
+  canRemoveItems,
   canToggleItems,
   displayItems,
+  draftItems,
   editMode,
-  isOwner,
   itemsToRemove,
+  onDraftItemChange,
   onRemoveItem,
   onToggleDone,
   onUndoRemove,
@@ -14,43 +18,73 @@ export default function ListItems({
   return (
     <ul className="space-y-1 sm:space-y-2 overflow-auto mb-4 max-h-32 sm:max-h-40 md:max-h-48">
       {displayItems.map(item => {
-        const canRemoveItem = isOwner || item.addedBy === user?.uid;
+        const canRemoveItem = canRemoveItems;
         const isRemoved = itemsToRemove.has(item._id);
+        const draftItem = draftItems[item._id] || item;
 
         return (
-          <li key={item._id} className="flex items-center">
+          <li key={item._id} className="flex items-start gap-2">
             <input
               type="checkbox"
               checked={item.done}
               disabled={editMode || !canToggleItems}
               onChange={() => onToggleDone(item)}
-              className="mr-2 h-4 w-4 sm:h-5 sm:w-5"
+              className="mt-1 h-4 w-4 flex-shrink-0 sm:h-5 sm:w-5"
             />
-            <span className={item.done ? 'line-through text-gray-500' : ''}>
-              {item.text}
-            </span>
-            {item.subCategory && (
-              <span className="ml-auto text-xs sm:text-sm italic text-gray-700">
-                {item.subCategory}
+            <div className="min-w-0 flex-1">
+              {editMode && canEditItemMetadata ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={draftItem.text}
+                    onChange={event =>
+                      onDraftItemChange(item._id, 'text', event.target.value)
+                    }
+                    className="w-full rounded border px-2 py-1 text-sm"
+                  />
+                  <input
+                    type="text"
+                    list={`subcategories-${item._id}`}
+                    value={draftItem.subCategory}
+                    onChange={event =>
+                      onDraftItemChange(item._id, 'subCategory', event.target.value)
+                    }
+                    className="w-full rounded border px-2 py-1 text-xs sm:text-sm"
+                  />
+                  <datalist id={`subcategories-${item._id}`}>
+                    {availableSubCategories.map(subCategory => (
+                      <option key={subCategory} value={subCategory} />
+                    ))}
+                  </datalist>
+                </div>
+              ) : (
+                <span className={item.done ? 'line-through text-gray-500' : ''}>
+                  {draftItem.text}
+                </span>
+              )}
+            </div>
+            {draftItem.subCategory && (
+              <span className="flex-shrink-0 text-xs sm:text-sm italic text-gray-700">
+                {draftItem.subCategory}
               </span>
             )}
-            {editMode &&
-              canRemoveItem &&
-              (isRemoved ? (
+            {editMode && canRemoveItem && (
+              isRemoved ? (
                 <button
                   onClick={() => onUndoRemove(item._id)}
-                  className="ml-2 text-yellow-600 text-xs sm:text-sm"
+                  className="flex-shrink-0 text-yellow-600 text-xs sm:text-sm"
                 >
                   Undo
                 </button>
               ) : (
                 <button
                   onClick={() => onRemoveItem(item._id)}
-                  className="ml-2 text-red-600 text-xs sm:text-sm"
+                  className="flex-shrink-0 text-red-600 text-xs sm:text-sm"
                 >
                   −
                 </button>
-              ))}
+              )
+            )}
           </li>
         );
       })}
