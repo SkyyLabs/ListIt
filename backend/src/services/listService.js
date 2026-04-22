@@ -18,7 +18,7 @@ function buildVisibleListFilter(uid, categoryId) {
     $or: [
       { isPublic: true },
       ...(uid
-        ? [{ ownerUid: uid }, { collaborators: uid }, { 'collaborators.uid': uid }]
+        ? [{ ownerUid: uid }, { 'collaborators.uid': uid }]
         : [])
     ]
   };
@@ -186,7 +186,6 @@ async function getUserActivityMap(uids = []) {
   const lists = await List.find({
     $or: [
       { ownerUid: { $in: normalizedUids } },
-      { collaborators: { $in: normalizedUids } },
       { 'collaborators.uid': { $in: normalizedUids } }
     ]
   })
