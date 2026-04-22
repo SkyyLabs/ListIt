@@ -1,94 +1,100 @@
-// frontend/src/components/Filters.js
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { sortUsers } from '../utils/sorting';
 
 export default function Filters({
   subCategories = [],
-  collaborators  = [],
+  collaborators = [],
   filters = { subCategory: [], addedBy: [], done: undefined },
   onChange,
   sortMode = 'subcategory',
   onSortModeChange
 }) {
-  const [open, setOpen] = useState({
-    sub: false,
-    user: false,
-    status: false,
-    sort: false
-  });
-  const subRef = useRef(null);
-  const userRef = useRef(null);
-  const statusRef = useRef(null);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [activePane, setActivePane] = useState('subCategory');
   const sortRef = useRef(null);
+  const filtersRef = useRef(null);
 
-  // close dropdown on outside click
   useEffect(() => {
-    const refs = {
-      sub: subRef,
-      user: userRef,
-      status: statusRef,
-      sort: sortRef
+    const handleOutside = event => {
+      if (sortRef.current && !sortRef.current.contains(event.target)) {
+        setSortOpen(false);
+      }
+      if (filtersRef.current && !filtersRef.current.contains(event.target)) {
+        setFiltersOpen(false);
+      }
     };
 
-    const handleOutside = e => {
-      Object.entries(refs).forEach(([key, ref]) => {
-        if (ref.current && !ref.current.contains(e.target)) {
-          setOpen(o => ({ ...o, [key]: false }));
-        }
-      });
-    };
     window.addEventListener('click', handleOutside);
     return () => window.removeEventListener('click', handleOutside);
   }, []);
 
-  const toggle = key => setOpen(o => ({ ...o, [key]: !o[key] }));
-
-  // Instead of deleting, reset to empty array
   const clearField = field => {
     onChange({ ...filters, [field]: [] });
   };
 
   const toggleItem = (field, value) => {
-    const arr = filters[field] || [];
-    const next = arr.includes(value)
-      ? arr.filter(v => v !== value)
-      : [...arr, value];
-    onChange({ ...filters, [field]: next });
+    const currentValues = filters[field] || [];
+    const nextValues = currentValues.includes(value)
+      ? currentValues.filter(entry => entry !== value)
+      : [...currentValues, value];
+    onChange({ ...filters, [field]: nextValues });
   };
 
-  const setStatus = val => {
-    onChange({ ...filters, done: val === 'all' ? undefined : val === 'done' });
-    setOpen(o => ({ ...o, status: false }));
+  const setStatus = value => {
+    onChange({ ...filters, done: value === 'all' ? undefined : value === 'done' });
+    setFiltersOpen(false);
   };
 
   const sortedCollaborators = sortUsers(collaborators);
+  const filterGroups = [
+    {
+      key: 'subCategory',
+      label: 'Subcategories',
+      active: filters.subCategory.length > 0
+    },
+    {
+      key: 'addedBy',
+      label: 'Users',
+      active: filters.addedBy.length > 0
+    },
+    {
+      key: 'done',
+      label: 'Status',
+      active: filters.done !== undefined
+    }
+  ];
 
   return (
-    <div className="flex gap-4">
+    <div className="mb-4 flex gap-3">
       <div className="relative" ref={sortRef}>
         <button
-          onClick={() => toggle('sort')}
-          className="text-sm bg-gray-200 px-3 py-1 rounded"
+          onClick={() => setSortOpen(open => !open)}
+          className="rounded bg-gray-200 px-3 py-1 text-sm"
         >
-          Sort: {sortMode === 'name' ? 'Name' : 'Subcategory'}
+          Sort
         </button>
-        {open.sort && (
-          <div className="absolute mt-1 w-40 bg-white border rounded shadow p-2 z-10">
+        {sortOpen && (
+          <div className="absolute left-0 top-full z-20 mt-2 w-40 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
             <button
               onClick={() => {
                 onSortModeChange?.('subcategory');
-                setOpen(o => ({ ...o, sort: false }));
+                setSortOpen(false);
               }}
-              className="block text-sm w-full text-left px-1 mb-1"
+              className={`block w-full rounded px-2 py-2 text-left text-sm ${
+                sortMode === 'subcategory' ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+              }`}
             >
               Subcategory
             </button>
             <button
               onClick={() => {
                 onSortModeChange?.('name');
-                setOpen(o => ({ ...o, sort: false }));
+                setSortOpen(false);
               }}
-              className="block text-sm w-full text-left px-1"
+              className={`mt-1 block w-full rounded px-2 py-2 text-left text-sm ${
+                sortMode === 'name' ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+              }`}
             >
               Name
             </button>
@@ -96,100 +102,115 @@ export default function Filters({
         )}
       </div>
 
-      {/* Subcategories */}
-      <div className="relative" ref={subRef}>
+      <div className="relative" ref={filtersRef}>
         <button
-          onClick={() => toggle('sub')}
-          className="text-sm bg-gray-200 px-3 py-1 rounded"
+          onClick={() => setFiltersOpen(open => !open)}
+          className="rounded bg-gray-200 px-3 py-1 text-sm"
         >
-          Subcategories ({filters.subCategory.length || 'All'})
+          Filters
         </button>
-        {open.sub && (
-          <div className="absolute mt-1 w-48 bg-white border rounded shadow p-2 max-h-48 overflow-auto z-10">
-            <button
-              onClick={() => clearField('subCategory')}
-              className="text-xs text-blue-500 mb-2"
-            >
-              All Subcategories
-            </button>
-            {subCategories.map(sc => (
-              <label key={sc} className="flex items-center text-sm mb-1">
-                <input
-                  type="checkbox"
-                  checked={filters.subCategory.includes(sc)}
-                  onChange={() => toggleItem('subCategory', sc)}
-                  className="mr-2"
-                />
-                {sc}
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
+        {filtersOpen && (
+          <div className="absolute left-0 top-full z-20 mt-2 flex rounded-xl border border-gray-200 bg-white shadow-xl">
+            <div className="min-w-[170px] border-r border-gray-200 p-2">
+              {filterGroups.map(group => (
+                <button
+                  key={group.key}
+                  onMouseEnter={() => setActivePane(group.key)}
+                  onFocus={() => setActivePane(group.key)}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${
+                    activePane === group.key ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <span>{group.label}</span>
+                  {group.active && (
+                    <span className={`text-xs ${activePane === group.key ? 'text-gray-200' : 'text-gray-500'}`}>
+                      Active
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
 
-      {/* Users */}
-      <div className="relative" ref={userRef}>
-        <button
-          onClick={() => toggle('user')}
-          className="text-sm bg-gray-200 px-3 py-1 rounded"
-        >
-          Users ({filters.addedBy.length || 'All'})
-        </button>
-        {open.user && (
-          <div className="absolute mt-1 w-48 bg-white border rounded shadow p-2 max-h-48 overflow-auto z-10">
-            <button
-              onClick={() => clearField('addedBy')}
-              className="text-xs text-blue-500 mb-2"
-            >
-              All Users
-            </button>
-            {sortedCollaborators.map(u => (
-              <label key={u.uid} className="flex items-center text-sm mb-1">
-                <input
-                  type="checkbox"
-                  checked={filters.addedBy.includes(u.uid)}
-                  onChange={() => toggleItem('addedBy', u.uid)}
-                  className="mr-2"
-                />
-                {u.displayName || u.uid}
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
+            <div className="soft-scrollbar min-h-[220px] w-[240px] max-h-[260px] overflow-auto p-3">
+              {activePane === 'subCategory' && (
+                <>
+                  <button
+                    onClick={() => clearField('subCategory')}
+                    className="mb-2 text-xs text-blue-500"
+                  >
+                    All Subcategories
+                  </button>
+                  {subCategories.map(subCategory => (
+                    <label
+                      key={subCategory}
+                      className="mb-1 flex items-center rounded px-1 py-1 text-sm hover:bg-gray-50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filters.subCategory.includes(subCategory)}
+                        onChange={() => toggleItem('subCategory', subCategory)}
+                        className="mr-2"
+                      />
+                      {subCategory}
+                    </label>
+                  ))}
+                </>
+              )}
 
-      {/* Status */}
-      <div className="relative" ref={statusRef}>
-        <button
-          onClick={() => toggle('status')}
-          className="text-sm bg-gray-200 px-3 py-1 rounded"
-        >
-          Status: {filters.done === undefined
-            ? 'All'
-            : filters.done
-              ? 'Done'
-              : 'Not Done'}
-        </button>
-        {open.status && (
-          <div className="absolute mt-1 w-32 bg-white border rounded shadow p-2 z-10">
-            <button
-              onClick={() => setStatus('all')}
-              className="block text-sm w-full text-left px-1 mb-1"
-            >
-              All
-            </button>
-            <button
-              onClick={() => setStatus('done')}
-              className="block text-sm w-full text-left px-1 mb-1"
-            >
-              Done
-            </button>
-            <button
-              onClick={() => setStatus('notdone')}
-              className="block text-sm w-full text-left px-1"
-            >
-              Not Done
-            </button>
+              {activePane === 'addedBy' && (
+                <>
+                  <button
+                    onClick={() => clearField('addedBy')}
+                    className="mb-2 text-xs text-blue-500"
+                  >
+                    All Users
+                  </button>
+                  {sortedCollaborators.map(collaborator => (
+                    <label
+                      key={collaborator.uid}
+                      className="mb-1 flex items-center rounded px-1 py-1 text-sm hover:bg-gray-50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filters.addedBy.includes(collaborator.uid)}
+                        onChange={() => toggleItem('addedBy', collaborator.uid)}
+                        className="mr-2"
+                      />
+                      {collaborator.displayName || collaborator.uid}
+                    </label>
+                  ))}
+                </>
+              )}
+
+              {activePane === 'done' && (
+                <>
+                  <button
+                    onClick={() => setStatus('all')}
+                    className={`block w-full rounded px-2 py-2 text-left text-sm ${
+                      filters.done === undefined ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setStatus('done')}
+                    className={`mt-1 block w-full rounded px-2 py-2 text-left text-sm ${
+                      filters.done === true ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    Done
+                  </button>
+                  <button
+                    onClick={() => setStatus('notdone')}
+                    className={`mt-1 block w-full rounded px-2 py-2 text-left text-sm ${
+                      filters.done === false ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    Not Done
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

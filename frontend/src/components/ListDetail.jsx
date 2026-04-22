@@ -467,7 +467,7 @@ export default function ListDetail({
       onDrop={onDrop}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      className={`relative rounded-lg shadow-xl ${color} p-4 sm:p-6 md:p-8`}
+      className={`relative flex min-h-[420px] flex-col rounded-lg shadow-xl ${color} p-4 sm:p-6 md:p-8`}
       style={{ minHeight: '200px' }}
     >
       {isPinned && (
@@ -511,78 +511,55 @@ export default function ListDetail({
         title={listState.title}
       />
 
-      {/* Filters */}
-      {!editMode && (
-        <Filters
-          collaborators={collaborators}
-          filters={filters}
-          onChange={setFilters}
-          onSortModeChange={onItemSortModeChange}
-          sortMode={itemSortMode}
-          subCategories={filterSubCategories}
-        />
-      )}
-
-      {/* Items */}
-      <ListItems
-        availableSubCategories={availableSubCategories}
-        canEditItemMetadata={canEditItemMetadata}
-        canRemoveItems={canManageItems}
-        canToggleItems={canToggleItems}
-        displayItems={displayItems}
-        draftItems={draftItems}
-        editMode={editMode}
-        itemsToRemove={itemsToRemove}
-        onDraftItemChange={handleDraftItemChange}
-        onRemoveItem={handleRemoveItem}
-        onToggleDone={handleToggleItemDone}
-        onUndoRemove={handleUndoRemove}
-        user={user}
-      />
-
-      {/* Add Item */}
-      {canManageItems && editMode && (
-        <button
-          onClick={() => setShowNewItem(true)}
-          className="w-full py-1 sm:py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm rounded-md transition mb-4"
-        >
-          + Add Item
-        </button>
-      )}
-
-      {/* Collaborators */}
-      {(isOwner || isCollab) && (
-        <CollaboratorPanel
-          collaborators={collaborators}
-          canInvite={canInvite}
-          canManagePermissions={canManagePermissions}
-          canRemoveCollaborator={canRemoveCollaborator}
-          disabled={!editMode}
-          inviteEmail={inviteEmail}
-          invitePermissions={invitePermissions}
-          onInvite={handleInvite}
-          onInviteEmailChange={setInviteEmail}
-          onInvitePermissionToggle={handleInvitePermissionToggle}
-          onPermissionChange={handlePermissionChange}
-          onRemoveCollaborator={handleRemoveCollaborator}
-          ownerUid={ownerUid}
-          showCollaborators={showCollaborators}
-          toggleCollaborators={() => setShowCollaborators(value => !value)}
-        />
-      )}
-
-      {/* Public Toggle */}
-      {isOwner && editMode && (
-        <label className="inline-flex items-center text-xs sm:text-sm mb-4">
-          <input
-            type="checkbox"
-            checked={listState.isPublic}
-            onChange={handlePublicToggle}
-            className="mr-2"
+      <div className="flex-1">
+        {!editMode && (
+          <Filters
+            collaborators={collaborators}
+            filters={filters}
+            onChange={setFilters}
+            onSortModeChange={onItemSortModeChange}
+            sortMode={itemSortMode}
+            subCategories={filterSubCategories}
           />
-          Public
-        </label>
-      )}
+        )}
+
+        <ListItems
+          availableSubCategories={availableSubCategories}
+          canEditItemMetadata={canEditItemMetadata}
+          canRemoveItems={canManageItems}
+          canToggleItems={canToggleItems}
+          displayItems={displayItems}
+          draftItems={draftItems}
+          editMode={editMode}
+          itemsToRemove={itemsToRemove}
+          onDraftItemChange={handleDraftItemChange}
+          onRemoveItem={handleRemoveItem}
+          onToggleDone={handleToggleItemDone}
+          onUndoRemove={handleUndoRemove}
+          user={user}
+        />
+
+        {canManageItems && editMode && (
+          <button
+            onClick={() => setShowNewItem(true)}
+            className="mb-4 w-full rounded-md bg-indigo-600 py-1 text-xs text-white transition hover:bg-indigo-700 sm:py-2 sm:text-sm"
+          >
+            + Add Item
+          </button>
+        )}
+
+        {isOwner && editMode && (
+          <label className="mb-4 inline-flex items-center text-xs sm:text-sm">
+            <input
+              type="checkbox"
+              checked={listState.isPublic}
+              onChange={handlePublicToggle}
+              className="mr-2"
+            />
+            Public
+          </label>
+        )}
+      </div>
 
       {/* New Item Modal */}
       {showNewItem && (
@@ -594,21 +571,50 @@ export default function ListDetail({
         />
       )}
 
-      <div className="mt-4 flex items-center justify-between gap-3">
-        {user && (
+      {(isOwner || isCollab) && (
+        <div className="mb-4">
+          <CollaboratorPanel
+            collaborators={collaborators}
+            canInvite={canInvite}
+            canManagePermissions={canManagePermissions}
+            canRemoveCollaborator={canRemoveCollaborator}
+            disabled={!editMode}
+            inviteEmail={inviteEmail}
+            invitePermissions={invitePermissions}
+            onInvite={handleInvite}
+            onInviteEmailChange={setInviteEmail}
+            onInvitePermissionToggle={handleInvitePermissionToggle}
+            onPermissionChange={handlePermissionChange}
+            onRemoveCollaborator={handleRemoveCollaborator}
+            ownerUid={ownerUid}
+            showCollaborators={showCollaborators}
+            toggleCollaborators={() => setShowCollaborators(value => !value)}
+          />
+        </div>
+      )}
+
+      <div className="mt-auto flex items-end justify-between gap-3 pt-4">
+        {user ? (
           <button
             onClick={onTogglePin}
-            className="rounded border px-2 py-1 text-xs sm:text-sm"
+            aria-label={isPinned ? 'Unpin list' : 'Pin list'}
+            className={`rounded-full border px-3 py-2 text-base leading-none shadow-sm ${
+              isPinned
+                ? 'border-red-500 bg-red-100 text-red-600'
+                : 'border-gray-300 bg-white text-red-500'
+            }`}
           >
-            {isPinned ? 'Unpin' : 'Pin'}
+            {isPinned ? '📌' : '📍'}
           </button>
+        ) : (
+          <div />
         )}
         <div className="ml-auto flex items-center gap-2 text-xs sm:text-sm">
           <button
             onClick={() => handleReactionChange('like')}
             disabled={!user}
             aria-label="Thumbs up"
-            className={`rounded border px-2 py-1 ${listState.currentUserReaction === 'like' ? 'border-green-500 bg-green-200' : 'bg-white'}`}
+            className={`rounded border px-2 py-1 shadow-sm ${listState.currentUserReaction === 'like' ? 'border-green-500 bg-green-200' : 'bg-white'}`}
           >
             👍 {listState.likesCount || 0}
           </button>
@@ -616,7 +622,7 @@ export default function ListDetail({
             onClick={() => handleReactionChange('dislike')}
             disabled={!user}
             aria-label="Thumbs down"
-            className={`rounded border px-2 py-1 ${listState.currentUserReaction === 'dislike' ? 'border-red-500 bg-red-200' : 'bg-white'}`}
+            className={`rounded border px-2 py-1 shadow-sm ${listState.currentUserReaction === 'dislike' ? 'border-red-500 bg-red-200' : 'bg-white'}`}
           >
             👎 {listState.dislikesCount || 0}
           </button>

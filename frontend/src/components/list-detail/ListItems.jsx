@@ -16,7 +16,7 @@ export default function ListItems({
   _user
 }) {
   return (
-    <ul className="space-y-1 sm:space-y-2 overflow-auto mb-4 max-h-32 sm:max-h-40 md:max-h-48">
+    <ul className="soft-scrollbar mb-4 max-h-32 space-y-1 overflow-auto sm:max-h-40 sm:space-y-2 md:max-h-48">
       {displayItems.map(item => {
         const canRemoveItem = canRemoveItems;
         const isRemoved = itemsToRemove.has(item._id);
