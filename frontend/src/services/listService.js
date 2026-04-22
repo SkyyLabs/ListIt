@@ -40,3 +40,8 @@ export async function updateListReaction(listId, reaction) {
   const res = await api.put(`/lists/${listId}/reaction`, { reaction });
   return res.data;
 }
+
+export async function duplicateList(listId) {
+  const res = await api.post(`/lists/${listId}/duplicate`);
+  return res.data;
+}

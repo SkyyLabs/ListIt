@@ -34,6 +34,9 @@ async function enrichLists(docs) {
   const uidSet = new Set();
   docs.forEach(list => {
     uidSet.add(list.ownerUid);
+    if (list.sourceOwnerUid) {
+      uidSet.add(list.sourceOwnerUid);
+    }
     normalizeCollaborators(list.collaborators || []).forEach(collaborator => {
       uidSet.add(collaborator.uid);
     });
@@ -70,6 +73,20 @@ async function enrichLists(docs) {
       email: userMap[list.ownerUid]?.email || null,
       displayName: userMap[list.ownerUid]?.displayName || null
     },
+    source: list.sourceListId
+      ? {
+        listId: list.sourceListId,
+        title: list.sourceTitle,
+        ownerUid: list.sourceOwnerUid,
+        owner: list.sourceOwnerUid
+          ? {
+            uid: list.sourceOwnerUid,
+            email: userMap[list.sourceOwnerUid]?.email || null,
+            displayName: userMap[list.sourceOwnerUid]?.displayName || null
+          }
+          : null
+      }
+      : null,
     collaborators: normalizeCollaborators(list.collaborators || []).map(collaborator => {
       const uid = collaborator.uid;
       return {

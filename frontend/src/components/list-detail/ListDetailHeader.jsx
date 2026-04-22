@@ -8,6 +8,7 @@ export default function ListDetailHeader({
   onEnterEditMode,
   onSaveEdit,
   saving,
+  source,
   title
 }) {
   return (
@@ -19,6 +20,14 @@ export default function ListDetailHeader({
         <div className="text-xs sm:text-sm text-gray-600">
           Category: <span className="font-medium">{categoryName}</span>
         </div>
+        {source && (
+          <div className="mt-1 text-[11px] sm:text-xs text-gray-500">
+            Based on <span className="font-medium">{source.title}</span>
+            {source.owner && (
+              <> by <span className="font-medium">{source.owner.displayName || source.owner.email || source.owner.uid}</span></>
+            )}
+          </div>
+        )}
       </div>
       {canEdit &&
         (editMode ? (

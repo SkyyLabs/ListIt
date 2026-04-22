@@ -22,6 +22,7 @@ import {
 } from '../utils/sorting';
 import {
   addCollaborator,
+  duplicateList,
   removeCollaborator,
   removeList,
   updateCollaboratorPermissions,
@@ -113,6 +114,11 @@ export default function ListDetail({
   const canRemoveCollaborator = isOwner;
   const canDelete = isOwner || (isAdmin && listState.isPublic);
   const canToggleItems = isOwner || isCollab;
+  const canDuplicate = Boolean(
+    user
+    && !isOwner
+    && (listState.isPublic || isCollab)
+  );
 
   const color = NOTE_COLORS[listState._id.charCodeAt(0) % NOTE_COLORS.length];
 
@@ -444,6 +450,16 @@ export default function ListDetail({
     }
   };
 
+  const handleDuplicate = async () => {
+    try {
+      const duplicatedList = await duplicateList(listState._id);
+      onListUpdate?.(duplicatedList, { prepend: true });
+      setError('');
+    } catch (err) {
+      setError(err.response?.data || err.message);
+    }
+  };
+
   const availableSubCategories = uniqueSortedStrings(
     listState.categoryId?.subCategories || []
   );
@@ -508,6 +524,7 @@ export default function ListDetail({
         onEnterEditMode={enterEditMode}
         onSaveEdit={saveEdit}
         saving={saving}
+        source={listState.source}
         title={listState.title}
       />
 
@@ -594,21 +611,29 @@ export default function ListDetail({
       )}
 
       <div className="mt-auto flex items-end justify-between gap-3 pt-4">
-        {user ? (
-          <button
-            onClick={onTogglePin}
-            aria-label={isPinned ? 'Unpin list' : 'Pin list'}
-            className={`rounded-full border px-3 py-2 text-base leading-none shadow-sm ${
-              isPinned
-                ? 'border-red-500 bg-red-100 text-red-600'
-                : 'border-gray-300 bg-white text-red-500'
-            }`}
-          >
-            {isPinned ? '📌' : '📍'}
-          </button>
-        ) : (
-          <div />
-        )}
+        <div className="flex items-center gap-2">
+          {user && (
+            <button
+              onClick={onTogglePin}
+              aria-label={isPinned ? 'Unpin list' : 'Pin list'}
+              className={`rounded-full border px-3 py-2 text-base leading-none shadow-sm ${
+                isPinned
+                  ? 'border-red-500 bg-red-100 text-red-600'
+                  : 'border-gray-300 bg-white text-red-500'
+              }`}
+            >
+              {isPinned ? '📌' : '📍'}
+            </button>
+          )}
+          {canDuplicate && (
+            <button
+              onClick={handleDuplicate}
+              className="rounded border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm sm:text-sm"
+            >
+              Duplicate
+            </button>
+          )}
+        </div>
         <div className="ml-auto flex items-center gap-2 text-xs sm:text-sm">
           <button
             onClick={() => handleReactionChange('like')}

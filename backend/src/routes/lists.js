@@ -2,6 +2,7 @@
 const express = require('express');
 const router  = express.Router();
 const List    = require('../models/List');
+const Item    = require('../models/Item');
 const ListReaction = require('../models/ListReaction');
 const { authenticate, optionalAuth } = require('../middlewares/auth');
 const { asyncHandler, createHttpError } = require('../utils/http');
@@ -247,6 +248,51 @@ router.put('/:id/reaction', asyncHandler(async (req, res) => {
 
   const [enrichedList] = await enrichListsWithStats([normalizedList], req.user.uid);
   return res.json(enrichedList);
+}));
+
+router.post('/:id/duplicate', asyncHandler(async (req, res) => {
+  const sourceList = await List.findById(req.params.id).lean();
+  if (!sourceList) throw createHttpError(404, 'List not found');
+
+  const normalizedSourceList = {
+    ...sourceList,
+    collaborators: normalizeCollaborators(sourceList.collaborators || [])
+  };
+  if (!canViewList(normalizedSourceList, req.user.uid)) {
+    throw createHttpError(403, 'Forbidden');
+  }
+
+  const duplicatedList = await List.create({
+    title: sourceList.title,
+    categoryId: sourceList.categoryId,
+    ownerUid: req.user.uid,
+    isPublic: false,
+    sourceListId: sourceList._id,
+    sourceTitle: sourceList.title,
+    sourceOwnerUid: sourceList.ownerUid,
+    collaborators: []
+  });
+
+  const sourceItems = await Item.find({ listId: sourceList._id }).lean();
+  if (sourceItems.length) {
+    await Item.insertMany(
+      sourceItems.map(item => ({
+        listId: duplicatedList._id,
+        text: item.text,
+        subCategory: item.subCategory,
+        addedBy: req.user.uid,
+        doneBy: Array.isArray(item.doneBy) && item.doneBy.includes(req.user.uid)
+          ? [req.user.uid]
+          : []
+      }))
+    );
+  }
+
+  const [enrichedList] = await enrichListsWithStats(
+    [duplicatedList.toObject()],
+    req.user.uid
+  );
+  return res.status(201).json(enrichedList);
 }));
 
 module.exports = router;

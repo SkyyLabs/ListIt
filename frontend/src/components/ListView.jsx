@@ -381,14 +381,17 @@ export default function ListView({ user }) {
                 onDelete={handleDelete}
                 onDrop={() => handlePinnedDrop(list._id)}
                 onItemSortModeChange={handleItemSortModeChange}
-                onListUpdate={updatedList => {
-                  setLists(prev =>
-                    prev.map(existingList =>
+                onListUpdate={(updatedList, options = {}) => {
+                  setLists(prev => {
+                    if (options.prepend) {
+                      return [updatedList, ...prev];
+                    }
+                    return prev.map(existingList =>
                       existingList._id === updatedList._id
                         ? { ...existingList, ...updatedList }
                         : existingList
-                    )
-                  );
+                    );
+                  });
                 }}
                 onStartAddItem={handleStartAddItem}
                 onTogglePin={() => handleTogglePin(list._id)}
@@ -416,14 +419,17 @@ export default function ListView({ user }) {
             onDelete={handleDelete}
             onDrop={() => {}}
             onItemSortModeChange={handleItemSortModeChange}
-            onListUpdate={updatedList => {
-              setLists(prev =>
-                prev.map(existingList =>
+            onListUpdate={(updatedList, options = {}) => {
+              setLists(prev => {
+                if (options.prepend) {
+                  return [updatedList, ...prev];
+                }
+                return prev.map(existingList =>
                   existingList._id === updatedList._id
                     ? { ...existingList, ...updatedList }
                     : existingList
-                )
-              );
+                );
+              });
             }}
             onStartAddItem={handleStartAddItem}
             onTogglePin={() => handleTogglePin(list._id)}

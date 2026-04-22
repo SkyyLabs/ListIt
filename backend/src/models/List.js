@@ -13,6 +13,9 @@ const ListSchema = new mongoose.Schema({
   categoryId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   ownerUid:      { type: String, required: true, trim: true },
   isPublic:      { type: Boolean, default: true },
+  sourceListId:  { type: mongoose.Schema.Types.ObjectId, ref: 'List', default: null },
+  sourceTitle:   { type: String, trim: true, default: null },
+  sourceOwnerUid:{ type: String, trim: true, default: null },
   collaborators: {
     type: [CollaboratorSchema],
     default: []

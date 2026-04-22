@@ -24,6 +24,8 @@ let originalListFind;
 let originalListReactionFind;
 let originalListReactionFindOneAndUpdate;
 let originalListReactionDeleteOne;
+let originalListCreate;
+let originalItemInsertMany;
 
 function createRequest({ method, pathName, headers = {}, body }) {
   const normalizedHeaders = { ...headers };
@@ -163,6 +165,8 @@ test.before(() => {
   originalListReactionFind = ListReaction.find;
   originalListReactionFindOneAndUpdate = ListReaction.findOneAndUpdate;
   originalListReactionDeleteOne = ListReaction.deleteOne;
+  originalListCreate = List.create;
+  originalItemInsertMany = Item.insertMany;
 });
 
 test.after(() => {
@@ -175,6 +179,8 @@ test.after(() => {
   ListReaction.find = originalListReactionFind;
   ListReaction.findOneAndUpdate = originalListReactionFindOneAndUpdate;
   ListReaction.deleteOne = originalListReactionDeleteOne;
+  List.create = originalListCreate;
+  Item.insertMany = originalItemInsertMany;
   delete require.cache[authModulePath];
   delete require.cache[categoriesRoutePath];
   delete require.cache[itemsRoutePath];
@@ -235,6 +241,14 @@ test.beforeEach(() => {
   });
   ListReaction.findOneAndUpdate = async () => ({});
   ListReaction.deleteOne = async () => ({ deletedCount: 1 });
+  List.create = async payload => ({
+    _id: 'duplicated-list-1',
+    ...payload,
+    toObject() {
+      return { _id: this._id, ...payload };
+    }
+  });
+  Item.insertMany = async docs => docs;
 });
 
 test('GET /items/:listId rejects a stranger from a private list', async () => {
@@ -332,4 +346,61 @@ test('PUT /lists/:id/reaction supports legacy string collaborators without savin
   assert.equal(status, 200);
   const list = JSON.parse(text);
   assert.equal(list.currentUserReaction, null);
+});
+
+test('POST /lists/:id/duplicate creates a private personal copy with only current user progress', async () => {
+  List.findById = () => ({
+    lean: async () => ({
+      _id: 'list-1',
+      title: 'Treks',
+      categoryId: 'cat-1',
+      ownerUid: 'owner-1',
+      isPublic: true,
+      collaborators: []
+    })
+  });
+
+  Item.find = () => ({
+    lean: async () => [
+      {
+        _id: 'item-1',
+        listId: 'list-1',
+        text: 'Kedarnath',
+        subCategory: 'North India',
+        addedBy: 'owner-1',
+        doneBy: ['collab-1']
+      },
+      {
+        _id: 'item-2',
+        listId: 'list-1',
+        text: 'Triund',
+        subCategory: 'North India',
+        addedBy: 'owner-1',
+        doneBy: []
+      }
+    ]
+  });
+
+  let insertedItems;
+  Item.insertMany = async docs => {
+    insertedItems = docs;
+    return docs;
+  };
+
+  const { status, text } = await request('/lists/list-1/duplicate', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer collabToken'
+    }
+  });
+
+  assert.equal(status, 201);
+  const duplicatedList = JSON.parse(text);
+  assert.equal(duplicatedList.ownerUid, 'collab-1');
+  assert.equal(duplicatedList.isPublic, false);
+  assert.equal(duplicatedList.source.title, 'Treks');
+  assert.equal(duplicatedList.source.ownerUid, 'owner-1');
+  assert.equal(insertedItems.length, 2);
+  assert.deepEqual(insertedItems.map(item => item.addedBy), ['collab-1', 'collab-1']);
+  assert.deepEqual(insertedItems.map(item => item.doneBy), [['collab-1'], []]);
 });
