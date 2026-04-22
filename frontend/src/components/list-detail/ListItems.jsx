@@ -13,7 +13,7 @@ export default function ListItems({
   onRemoveItem,
   onToggleDone,
   onUndoRemove,
-  user
+  _user
 }) {
   return (
     <ul className="space-y-1 sm:space-y-2 overflow-auto mb-4 max-h-32 sm:max-h-40 md:max-h-48">
