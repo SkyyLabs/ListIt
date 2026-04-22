@@ -1,5 +1,5 @@
 // frontend/src/components/Filters.js
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react';
 
 export default function Filters({
   subCategories = [],
@@ -7,50 +7,54 @@ export default function Filters({
   filters = { subCategory: [], addedBy: [], done: undefined },
   onChange
 }) {
-  const [open, setOpen] = useState({ sub: false, user: false, status: false })
-  const refs = {
-    sub: useRef(null),
-    user: useRef(null),
-    status: useRef(null)
-  }
+  const [open, setOpen] = useState({ sub: false, user: false, status: false });
+  const subRef = useRef(null);
+  const userRef = useRef(null);
+  const statusRef = useRef(null);
 
   // close dropdown on outside click
   useEffect(() => {
+    const refs = {
+      sub: subRef,
+      user: userRef,
+      status: statusRef
+    };
+
     const handleOutside = e => {
       Object.entries(refs).forEach(([key, ref]) => {
         if (ref.current && !ref.current.contains(e.target)) {
-          setOpen(o => ({ ...o, [key]: false }))
+          setOpen(o => ({ ...o, [key]: false }));
         }
-      })
-    }
-    window.addEventListener('click', handleOutside)
-    return () => window.removeEventListener('click', handleOutside)
-  }, [])
+      });
+    };
+    window.addEventListener('click', handleOutside);
+    return () => window.removeEventListener('click', handleOutside);
+  }, []);
 
-  const toggle = key => setOpen(o => ({ ...o, [key]: !o[key] }))
+  const toggle = key => setOpen(o => ({ ...o, [key]: !o[key] }));
 
   // Instead of deleting, reset to empty array
   const clearField = field => {
-    onChange({ ...filters, [field]: [] })
-  }
+    onChange({ ...filters, [field]: [] });
+  };
 
   const toggleItem = (field, value) => {
-    const arr = filters[field] || []
+    const arr = filters[field] || [];
     const next = arr.includes(value)
       ? arr.filter(v => v !== value)
-      : [...arr, value]
-    onChange({ ...filters, [field]: next })
-  }
+      : [...arr, value];
+    onChange({ ...filters, [field]: next });
+  };
 
   const setStatus = val => {
-    onChange({ ...filters, done: val === 'all' ? undefined : val === 'done' })
-    setOpen(o => ({ ...o, status: false }))
-  }
+    onChange({ ...filters, done: val === 'all' ? undefined : val === 'done' });
+    setOpen(o => ({ ...o, status: false }));
+  };
 
   return (
     <div className="flex gap-4">
       {/* Subcategories */}
-      <div className="relative" ref={refs.sub}>
+      <div className="relative" ref={subRef}>
         <button
           onClick={() => toggle('sub')}
           className="text-sm bg-gray-200 px-3 py-1 rounded"
@@ -81,7 +85,7 @@ export default function Filters({
       </div>
 
       {/* Users */}
-      <div className="relative" ref={refs.user}>
+      <div className="relative" ref={userRef}>
         <button
           onClick={() => toggle('user')}
           className="text-sm bg-gray-200 px-3 py-1 rounded"
@@ -112,7 +116,7 @@ export default function Filters({
       </div>
 
       {/* Status */}
-      <div className="relative" ref={refs.status}>
+      <div className="relative" ref={statusRef}>
         <button
           onClick={() => toggle('status')}
           className="text-sm bg-gray-200 px-3 py-1 rounded"
@@ -147,5 +151,5 @@ export default function Filters({
         )}
       </div>
     </div>
-  )
+  );
 }

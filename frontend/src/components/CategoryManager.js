@@ -1,44 +1,55 @@
 // frontend/src/components/CategoryManager.js
-import React, { useState, useEffect } from 'react'
-import api from '../api'
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import InlineError from './InlineError';
+import {
+  createCategory,
+  removeCategory,
+  renameCategory
+} from '../services/categoryService';
 
 export default function CategoryManager({ categories, setCategories, user }) {
-  const adminUid = process.env.REACT_APP_ADMIN_UID
-  const isAdmin = user?.uid === adminUid
+  const { isAdmin } = useAuth();
 
   // for new‐category input
-  const [newName, setNewName] = useState('')
+  const [newName, setNewName] = useState('');
 
   // existing edit state (your rename logic)
-  const [editNames, setEditNames] = useState({})
+  const [editNames, setEditNames] = useState({});
+  const [error, setError] = useState('');
 
   useEffect(() => {
     // initialize editNames whenever categories change
-    const names = {}
+    const names = {};
     categories.forEach(cat => {
-      names[cat._id] = cat.name
-    })
-    setEditNames(names)
-  }, [categories])
+      names[cat._id] = cat.name;
+    });
+    setEditNames(names);
+  }, [categories]);
 
   // Create a new category
   const handleAdd = async () => {
-    const nm = newName.trim()
-    if (!nm) return alert('Enter a category name')
-    try {
-      const res = await api.post('/categories', { name: nm })
-      setCategories([ ...categories, res.data ])
-      setNewName('')
-    } catch (err) {
-      alert(err.response?.data || err.message)
+    const nm = newName.trim();
+    if (!nm) {
+      setError('Enter a category name.');
+      return;
     }
-  }
+    try {
+      const category = await createCategory(nm);
+      setCategories([ ...categories, category ]);
+      setNewName('');
+      setError('');
+    } catch (err) {
+      setError(err.response?.data || err.message);
+    }
+  };
 
   // (Your existing rename & delete handlers go here — unchanged)
 
   return (
     <div className="my-4 p-4 border rounded bg-gray-50">
       <h3 className="font-medium mb-2">Manage Categories</h3>
+      <InlineError message={error} className="mb-3" />
 
       {isAdmin && (
         <div className="flex gap-2 mb-4">
@@ -60,8 +71,8 @@ export default function CategoryManager({ categories, setCategories, user }) {
 
       <ul className="space-y-2">
         {categories.map(cat => {
-          const isOwner = user.uid === cat.ownerUid
-          const canRename = isOwner || isAdmin
+          const isOwner = user.uid === cat.ownerUid;
+          const canRename = isOwner || isAdmin;
 
           return (
             <li key={cat._id} className="flex items-center gap-2">
@@ -76,16 +87,21 @@ export default function CategoryManager({ categories, setCategories, user }) {
               />
               {canRename && (
                 <button
-                  onClick={() => {
-                    const newVal = editNames[cat._id].trim()
-                    if (!newVal) return alert('Name cannot be blank')
-                    api.put(`/categories/${cat._id}`, { name: newVal })
-                      .then(r => {
-                        setCategories(categories.map(c =>
-                          c._id === cat._id ? r.data : c
-                        ))
-                      })
-                      .catch(err => alert(err.response?.data || err.message))
+                  onClick={async () => {
+                    const newVal = editNames[cat._id].trim();
+                    if (!newVal) {
+                      setError('Name cannot be blank.');
+                      return;
+                    }
+                    try {
+                      const updatedCategory = await renameCategory(cat._id, newVal);
+                      setCategories(categories.map(c =>
+                        c._id === cat._id ? updatedCategory : c
+                      ));
+                      setError('');
+                    } catch (err) {
+                      setError(err.response?.data || err.message);
+                    }
                   }}
                   className="px-2 py-1 bg-green-300 rounded hover:bg-green-500 text-xs"
                 >
@@ -94,13 +110,15 @@ export default function CategoryManager({ categories, setCategories, user }) {
               )}
               {isAdmin && (
                 <button
-                  onClick={() => {
-                    if (!window.confirm('Delete this category?')) return
-                    api.delete(`/categories/${cat._id}`)
-                      .then(() => {
-                        setCategories(categories.filter(c => c._id !== cat._id))
-                      })
-                      .catch(err => alert(err.response?.data || err.message))
+                  onClick={async () => {
+                    if (!window.confirm('Delete this category?')) return;
+                    try {
+                      await removeCategory(cat._id);
+                      setCategories(categories.filter(c => c._id !== cat._id));
+                      setError('');
+                    } catch (err) {
+                      setError(err.response?.data || err.message);
+                    }
                   }}
                   className="px-2 py-1 bg-red-400 rounded hover:bg-red-600 text-xs"
                 >
@@ -108,9 +126,9 @@ export default function CategoryManager({ categories, setCategories, user }) {
                 </button>
               )}
             </li>
-          )
+          );
         })}
       </ul>
     </div>
-  )
+  );
 }

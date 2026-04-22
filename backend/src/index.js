@@ -1,36 +1,36 @@
 // backend/src/index.js
 require('dotenv').config();
-const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
 const admin = require('firebase-admin');
-const prefRoutes = require('./routes/preferences');
+const { createApp } = require('./app');
+const {
+  DEFAULT_PUBLIC_CATEGORIES
+} = require('./config/constants');
+const {
+  PORT,
+  CORS_ORIGIN,
+  MONGO_URI,
+  ADMIN_UID,
+  FIREBASE_SERVICE_ACCOUNT_KEY
+} = require('./config/env');
 
 // import your Category model
 const Category = require('./models/Category');
 
-const app = express();
-const PORT = process.env.PORT || 4000;
-
-// CORS & JSON
-app.use(
-  cors({
-    origin: process.env.CORS_ORIGIN,
-    credentials: true
-  })
-);
-app.use(express.json());
+const app = createApp();
 
 // Initialize Firebase Admin with service account from environment variable
+if (!FIREBASE_SERVICE_ACCOUNT_KEY) {
+  throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY is required');
+}
+
 admin.initializeApp({
-  credential: admin.credential.cert(
-    JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-  )
+  credential: admin.credential.cert(FIREBASE_SERVICE_ACCOUNT_KEY)
 });
 
 // connect to MongoDB
 mongoose
-  .connect(process.env.MONGO_URI, {
+  .connect(MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
   })
@@ -42,26 +42,13 @@ mongoose
 
 // seed function
 async function seedDefaultCategories() {
-  const defaultNames = [
-    'To Do',
-    'Movies',
-    'Novels',
-    'Animes',
-    'Series',
-    'Hotels',
-    'Trips',
-    'Treks',
-    'Eateries'
-  ];
-  const adminUid = process.env.ADMIN_UID;
-
-  for (const name of defaultNames) {
+  for (const name of DEFAULT_PUBLIC_CATEGORIES) {
     await Category.updateOne(
       { name, isPublic: true },
       {
         $setOnInsert: {
           name,
-          ownerUid: adminUid,
+          ownerUid: ADMIN_UID,
           isPublic: true
         }
       },
@@ -70,14 +57,5 @@ async function seedDefaultCategories() {
   }
   console.log('🌱 Default categories seeded');
 }
-
-// mount your existing routes
-app.use('/categories', require('./routes/categories'));
-app.use('/lists',      require('./routes/lists'));
-app.use('/items',      require('./routes/items'));
-app.use('/preferences', prefRoutes);
-
-// healthcheck
-app.get('/', (_, res) => res.send('Collaborative List API is running'));
 
 app.listen(PORT, () => console.log(`🚀 Backend listening on port ${PORT}`));

@@ -1,0 +1,30 @@
+import api from '../api';
+
+export async function fetchLists(params = {}) {
+  const res = await api.get('/lists', { params });
+  return res.data;
+}
+
+export async function createList(payload) {
+  const res = await api.post('/lists', payload);
+  return res.data;
+}
+
+export async function updateList(listId, payload) {
+  const res = await api.put(`/lists/${listId}`, payload);
+  return res.data;
+}
+
+export async function removeList(listId) {
+  await api.delete(`/lists/${listId}`);
+}
+
+export async function addCollaborator(listId, payload) {
+  const res = await api.post(`/lists/${listId}/collaborators`, payload);
+  return res.data;
+}
+
+export async function removeCollaborator(listId, uid) {
+  const res = await api.delete(`/lists/${listId}/collaborators/${uid}`);
+  return res.data;
+}

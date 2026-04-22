@@ -1,9 +1,10 @@
 import React from 'react';
+import { APP_NAME } from '../config/constants';
 
 export default function NavBar({ user, onLogin, onLogout }) {
   return (
     <header className="w-full bg-white shadow-sm px-6 py-3 flex justify-between items-center">
-      <div className="text-2xl font-semibold text-indigo-600">Lister</div>
+      <div className="text-2xl font-semibold text-indigo-600">{APP_NAME}</div>
       <div>
         {user ? (
           <button
@@ -22,5 +23,5 @@ export default function NavBar({ user, onLogin, onLogout }) {
         )}
       </div>
     </header>
-);
+  );
 }

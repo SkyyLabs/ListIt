@@ -1,71 +1,129 @@
 // frontend/src/components/ListView.js
-import React, { useState, useEffect } from 'react'
-import api from '../api'
-import NewListModal from './NewListModal'
-import ListDetail from './ListDetail'
-import CategoryManager from './CategoryManager'
+import React, { useState, useEffect, useRef } from 'react';
+import NewListModal from './NewListModal';
+import ListDetail from './ListDetail';
+import CategoryManager from './CategoryManager';
+import { DEFAULT_SHOW_PUBLIC } from '../config/constants';
+import { useAuth } from '../contexts/AuthContext';
+import { fetchCategories } from '../services/categoryService';
+import { fetchLists } from '../services/listService';
+import { getVisibleLists } from '../utils/listVisibility';
+import {
+  fetchPreferences,
+  updatePreferences
+} from '../services/preferenceService';
 
 export default function ListView({ user }) {
-  const [lists, setLists] = useState([])
-  const [categories, setCategories] = useState([])
-  const [categoryFilter, setCategoryFilter] = useState('')
-  const [showPublic, setShowPublic] = useState(true)
-  const [showNewList, setShowNewList] = useState(false)
-  const [showCatManager, setShowCatManager] = useState(false)
+  const [lists, setLists] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [showPublic, setShowPublic] = useState(DEFAULT_SHOW_PUBLIC);
+  const [showNewList, setShowNewList] = useState(false);
+  const [showCatManager, setShowCatManager] = useState(false);
+  const isMountedRef = useRef(true);
+  const preferenceRequestRef = useRef(0);
+  const { isAdmin } = useAuth();
 
-  const isAdmin = user?.uid === process.env.REACT_APP_ADMIN_UID
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Load categories once
   useEffect(() => {
-    api.get('/categories')
-      .then(res => setCategories(res.data))
-      .catch(console.error)
-  }, [])
+    let cancelled = false;
+
+    fetchCategories()
+      .then(nextCategories => {
+        if (!cancelled) {
+          setCategories(nextCategories);
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          console.error(err);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Load lists whenever filter or user changes
   useEffect(() => {
-    const params = {}
-    if (categoryFilter) params.categoryId = categoryFilter
-    api.get('/lists', { params })
-      .then(res => setLists(res.data))
-      .catch(console.error)
-  }, [categoryFilter, user])
+    let cancelled = false;
+    const params = {};
+    if (categoryFilter) params.categoryId = categoryFilter;
+    fetchLists(params)
+      .then(nextLists => {
+        if (!cancelled) {
+          setLists(nextLists);
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          console.error(err);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryFilter, user]);
 
   // Load persisted "showPublic" preference from DB
   useEffect(() => {
+    let cancelled = false;
+
     if (user) {
-      api.get('/preferences')
-        .then(res => setShowPublic(res.data.showPublic))
-        .catch(() => setShowPublic(true))
+      fetchPreferences()
+        .then(pref => {
+          if (!cancelled) {
+            setShowPublic(pref.showPublic);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setShowPublic(DEFAULT_SHOW_PUBLIC);
+          }
+        });
     } else {
-      setShowPublic(true)
+      setShowPublic(DEFAULT_SHOW_PUBLIC);
     }
-  }, [user])
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // Persist "showPublic" toggle to DB
   const handleShowPublicChange = e => {
-    const val = e.target.checked
-    setShowPublic(val)
+    const val = e.target.checked;
+    const prevVal = showPublic;
+    setShowPublic(val);
     if (user) {
-      api.put('/preferences', { showPublic: val })
-        .catch(console.error)
+      const requestId = preferenceRequestRef.current + 1;
+      preferenceRequestRef.current = requestId;
+      updatePreferences({ showPublic: val })
+        .catch(err => {
+          if (isMountedRef.current && preferenceRequestRef.current === requestId) {
+            setShowPublic(prevVal);
+          }
+          console.error(err);
+        });
     }
-  }
+  };
 
   // Ensure NewListModal is closed when adding an item
   const handleStartAddItem = () => {
-    setShowNewList(false)
-  }
+    setShowNewList(false);
+  };
 
-  // Determine which lists to show
-  const visible = lists.filter(l => {
-    const ownerUid = l.owner?.uid ?? l.ownerUid
-    const collabs = (l.collaborators || []).map(c => c.uid || c)
-    const isOwner = user?.uid === ownerUid
-    const isCollab = user && collabs.includes(user.uid)
-    if (isOwner || isCollab) return true
-    return l.isPublic && showPublic
-  })
+  // The API returns all lists visible to the current request. This client-side
+  // pass applies the user's personal "Show Public" preference on top of that.
+  const visible = getVisibleLists(lists, user, showPublic);
 
   return (
     <>
@@ -145,5 +203,5 @@ export default function ListView({ user }) {
         />
       )}
     </>
-  )
+  );
 }

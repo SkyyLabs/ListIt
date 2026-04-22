@@ -1,0 +1,25 @@
+const APP_NAME = 'ListIt';
+const API_HEALTHCHECK_MESSAGE = `${APP_NAME} API is running`;
+const DEFAULT_CATEGORY_NAME = 'Other';
+const DEFAULT_ITEM_SUBCATEGORY = 'Misc';
+const DEFAULT_SHOW_PUBLIC = true;
+const DEFAULT_PUBLIC_CATEGORIES = [
+  'To Do',
+  'Movies',
+  'Novels',
+  'Animes',
+  'Series',
+  'Hotels',
+  'Trips',
+  'Treks',
+  'Eateries'
+];
+
+module.exports = {
+  APP_NAME,
+  API_HEALTHCHECK_MESSAGE,
+  DEFAULT_CATEGORY_NAME,
+  DEFAULT_ITEM_SUBCATEGORY,
+  DEFAULT_SHOW_PUBLIC,
+  DEFAULT_PUBLIC_CATEGORIES
+};

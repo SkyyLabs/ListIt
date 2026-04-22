@@ -1,6 +1,7 @@
 // frontend/src/components/NewItemModal.js
-import React, { useState, useEffect, useRef } from 'react'
-import api from '../api'
+import React, { useState, useEffect, useRef } from 'react';
+import { createItem } from '../services/itemService';
+import InlineError from './InlineError';
 
 export default function NewItemModal({
   draft = false,
@@ -9,66 +10,69 @@ export default function NewItemModal({
   onCreated,
   onClose
 }) {
-  const [text, setText]               = useState('')
-  const [subCategory, setSubCategory] = useState('')
-  const [filtered, setFiltered]       = useState([])
-  const [showSug, setShowSug]         = useState(false)
-  const wrapperRef = useRef(null)
+  const [text, setText]               = useState('');
+  const [subCategory, setSubCategory] = useState('');
+  const [filtered, setFiltered]       = useState([]);
+  const [showSug, setShowSug]         = useState(false);
+  const [error, setError]             = useState('');
+  const wrapperRef = useRef(null);
 
   // Sort subCategories alphabetically
   const sorted = [...subCategories].sort((a, b) =>
     a.localeCompare(b, undefined, { sensitivity: 'base' })
-  )
+  );
 
   // Update suggestions as user types
   useEffect(() => {
-    const q = subCategory.trim().toLowerCase()
+    const q = subCategory.trim().toLowerCase();
     setFiltered(
       q
         ? sorted.filter(sc => sc.toLowerCase().includes(q))
         : sorted
-    )
-  }, [subCategory, sorted])
+    );
+  }, [subCategory, sorted]);
 
   // Close suggestions on mousedown outside
   useEffect(() => {
     const handler = e => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setShowSug(false)
+        setShowSug(false);
       }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleSelect = val => {
-    setSubCategory(val)
-    setShowSug(false)
-  }
+    setSubCategory(val);
+    setShowSug(false);
+  };
 
   const handleSubmit = async e => {
-    e.preventDefault()
+    e.preventDefault();
     if (!text.trim()) {
-      alert('Item text is required')
-      return
+      setError('Item text is required.');
+      return;
     }
+    setError('');
     const payload = {
       text: text.trim(),
       subCategory: subCategory.trim() || undefined
-    }
+    };
     if (draft) {
       // just add to draft
-      onCreated({ _id: `temp_${Date.now()}`, ...payload, addedBy: null, done: false })
+      onCreated({ _id: `temp_${Date.now()}`, ...payload, addedBy: null, done: false });
     } else {
       try {
-        const res = await api.post('/items', { listId, ...payload })
-        onCreated(res.data)
+        const item = await createItem(listId, payload);
+        onCreated(item);
       } catch (err) {
-        return alert(err.response?.data || err.message)
+        setError(err.response?.data || err.message);
+        return;
       }
     }
-    onClose()
-  }
+    onClose();
+  };
 
   return (
     <div
@@ -81,6 +85,7 @@ export default function NewItemModal({
         className="bg-white p-6 rounded-md shadow-md w-80 space-y-4"
       >
         <h2 className="text-lg font-semibold">New Item</h2>
+        <InlineError message={error} />
 
         <input
           type="text"
@@ -101,8 +106,8 @@ export default function NewItemModal({
             placeholder="Type or select"
             value={subCategory}
             onChange={e => {
-              setSubCategory(e.target.value)
-              setShowSug(true)
+              setSubCategory(e.target.value);
+              setShowSug(true);
             }}
             onFocus={() => setShowSug(true)}
           />
@@ -142,5 +147,5 @@ export default function NewItemModal({
         </div>
       </form>
     </div>
-  )
+  );
 }

@@ -1,25 +1,24 @@
 import { initializeApp } from 'firebase/app';
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, isSupported } from 'firebase/analytics';
 import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
   signOut
 } from 'firebase/auth';
-
-const firebaseConfig = {
-  apiKey:            process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain:        process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId:         process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket:     process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId:     process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
-};
+import { firebaseConfig } from './config/env';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const analytics = getAnalytics(app);
+if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
+  isSupported()
+    .then(supported => {
+      if (supported) {
+        getAnalytics(app);
+      }
+    })
+    .catch(() => {});
+}
 const googleProvider = new GoogleAuthProvider();
 
 export { auth, googleProvider, signInWithPopup, signOut };

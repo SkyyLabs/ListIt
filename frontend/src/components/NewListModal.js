@@ -1,70 +1,74 @@
 // frontend/src/components/NewListModal.js
-import React, { useState, useRef, useEffect } from 'react'
-import api from '../api'
+import React, { useState, useRef, useEffect } from 'react';
+import { DEFAULT_CATEGORY_NAME, DEFAULT_SHOW_PUBLIC } from '../config/constants';
+import { createList } from '../services/listService';
+import InlineError from './InlineError';
 
 export default function NewListModal({
   categories = [],
   onCreated,
   onClose
 }) {
-  const [title, setTitle]               = useState('')
-  const [categoryName, setCategoryName] = useState('')
-  const [isPublic, setIsPublic]         = useState(true)
-  const [filteredCats, setFilteredCats] = useState([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const wrapperRef = useRef(null)
+  const [title, setTitle]               = useState('');
+  const [categoryName, setCategoryName] = useState('');
+  const [isPublic, setIsPublic]         = useState(DEFAULT_SHOW_PUBLIC);
+  const [filteredCats, setFilteredCats] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [error, setError]               = useState('');
+  const wrapperRef = useRef(null);
 
   // Sort categories alphabetically
   const sortedCats = [...categories].sort((a, b) =>
     a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-  )
+  );
 
   // Filter as user types
   useEffect(() => {
-    const q = categoryName.trim().toLowerCase()
+    const q = categoryName.trim().toLowerCase();
     setFilteredCats(
       q
         ? sortedCats.filter(cat => cat.name.toLowerCase().includes(q))
         : sortedCats
-    )
-  }, [categoryName, sortedCats])
+    );
+  }, [categoryName, sortedCats]);
 
   // Close suggestions on any mousedown outside the wrapper
   useEffect(() => {
     const handleClickOutside = e => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setShowSuggestions(false)
+        setShowSuggestions(false);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
+    };
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleSelectCat = name => {
-    setCategoryName(name)
-    setShowSuggestions(false)
-  }
+    setCategoryName(name);
+    setShowSuggestions(false);
+  };
 
   const handleSubmit = async e => {
-    e.preventDefault()
-    const t = title.trim()
+    e.preventDefault();
+    const t = title.trim();
     if (!t) {
-      alert('List title is required')
-      return
+      setError('List title is required.');
+      return;
     }
-    const catName = categoryName.trim() || undefined
+    setError('');
+    const catName = categoryName.trim() || undefined;
     try {
-      const payload = { title: t, categoryName: catName, isPublic }
-      const res = await api.post('/lists', payload)
-      onCreated(res.data)
-      onClose()
+      const payload = { title: t, categoryName: catName, isPublic };
+      const list = await createList(payload);
+      onCreated(list);
+      onClose();
     } catch (err) {
-      console.error('Error creating list:', err)
-      alert(err.response?.data || err.message)
+      console.error('Error creating list:', err);
+      setError(err.response?.data || err.message);
     }
-  }
+  };
 
   return (
     <div
@@ -77,6 +81,7 @@ export default function NewListModal({
         className="bg-white p-6 rounded-md shadow-md w-80 space-y-4"
       >
         <h2 className="text-lg font-semibold">New List</h2>
+        <InlineError message={error} />
 
         <input
           type="text"
@@ -97,8 +102,8 @@ export default function NewListModal({
             placeholder="Type to Search or Add New"
             value={categoryName}
             onChange={e => {
-              setCategoryName(e.target.value)
-              setShowSuggestions(true)
+              setCategoryName(e.target.value);
+              setShowSuggestions(true);
             }}
             onFocus={() => setShowSuggestions(true)}
           />
@@ -120,7 +125,7 @@ export default function NewListModal({
             </ul>
           )}
           <p className="text-xs text-gray-500 mt-1">
-            Leave blank for “Other”
+            {`Leave blank for "${DEFAULT_CATEGORY_NAME}"`}
           </p>
         </div>
 
@@ -151,5 +156,5 @@ export default function NewListModal({
         </div>
       </form>
     </div>
-  )
+  );
 }
