@@ -2,10 +2,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const express = require('express');
-const { Readable, Writable } = require('node:stream');
+const { PassThrough, Readable, Writable } = require('node:stream');
 const Category = require('../models/Category');
 const Item = require('../models/Item');
 const List = require('../models/List');
+const ListReaction = require('../models/ListReaction');
 const { errorHandler } = require('../middlewares/errorHandler');
 
 const authModulePath = require.resolve('../middlewares/auth');
@@ -19,19 +20,33 @@ let originalItemFind;
 let originalItemFindById;
 let originalListFindById;
 let originalItemCountDocuments;
+let originalListFind;
+let originalListReactionFind;
+let originalListReactionFindOneAndUpdate;
+let originalListReactionDeleteOne;
 
-function createRequest({ method, pathName, headers = {} }) {
+function createRequest({ method, pathName, headers = {}, body }) {
+  const normalizedHeaders = { ...headers };
+  if (body && !normalizedHeaders['content-length']) {
+    normalizedHeaders['content-length'] = Buffer.byteLength(body).toString();
+  }
+
   const req = new Readable({
     read() {
+      if (body) {
+        this.push(body);
+      }
       this.push(null);
     }
   });
 
   req.method = method;
   req.url = pathName;
-  req.headers = headers;
-  req.connection = {};
-  req.socket = {};
+  req.headers = normalizedHeaders;
+  const socket = new PassThrough();
+  socket.destroy = () => {};
+  req.connection = socket;
+  req.socket = socket;
 
   return req;
 }
@@ -81,7 +96,8 @@ function request(pathName, options = {}) {
     const req = createRequest({
       method: options.method || 'GET',
       pathName,
-      headers: options.headers || {}
+      headers: options.headers || {},
+      body: options.body
     });
     const res = createResponse(resolve);
     app.handle(req, res);
@@ -142,7 +158,11 @@ test.before(() => {
   originalItemFind = Item.find;
   originalItemFindById = Item.findById;
   originalListFindById = List.findById;
+  originalListFind = List.find;
   originalItemCountDocuments = Item.countDocuments;
+  originalListReactionFind = ListReaction.find;
+  originalListReactionFindOneAndUpdate = ListReaction.findOneAndUpdate;
+  originalListReactionDeleteOne = ListReaction.deleteOne;
 });
 
 test.after(() => {
@@ -150,7 +170,11 @@ test.after(() => {
   Item.find = originalItemFind;
   Item.findById = originalItemFindById;
   List.findById = originalListFindById;
+  List.find = originalListFind;
   Item.countDocuments = originalItemCountDocuments;
+  ListReaction.find = originalListReactionFind;
+  ListReaction.findOneAndUpdate = originalListReactionFindOneAndUpdate;
+  ListReaction.deleteOne = originalListReactionDeleteOne;
   delete require.cache[authModulePath];
   delete require.cache[categoriesRoutePath];
   delete require.cache[itemsRoutePath];
@@ -200,6 +224,17 @@ test.beforeEach(() => {
   });
 
   Item.countDocuments = async () => 0;
+  List.find = () => ({
+    select() {
+      return this;
+    },
+    lean: async () => []
+  });
+  ListReaction.find = () => ({
+    lean: async () => []
+  });
+  ListReaction.findOneAndUpdate = async () => ({});
+  ListReaction.deleteOne = async () => ({ deletedCount: 1 });
 });
 
 test('GET /items/:listId rejects a stranger from a private list', async () => {
@@ -267,4 +302,34 @@ test('DELETE /lists/:id blocks an owner when foreign items exist', async () => {
 
   assert.equal(status, 403);
   assert.equal(text, 'Forbidden');
+});
+
+test('PUT /lists/:id/reaction supports legacy string collaborators without saving the list', async () => {
+  List.findById = async listId => ({
+    _id: listId,
+    ownerUid: 'owner-1',
+    collaborators: ['collab-1'],
+    isPublic: false,
+    toObject() {
+      return {
+        _id: listId,
+        ownerUid: 'owner-1',
+        collaborators: ['collab-1'],
+        isPublic: false
+      };
+    }
+  });
+
+  const { status, text } = await request('/lists/list-1/reaction', {
+    method: 'PUT',
+    headers: {
+      authorization: 'Bearer collabToken',
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({ reaction: 'like' })
+  });
+
+  assert.equal(status, 200);
+  const list = JSON.parse(text);
+  assert.equal(list.currentUserReaction, null);
 });

@@ -26,7 +26,8 @@ const {
   canViewList,
   canInviteCollaborators,
   canRemoveCollaborator,
-  canUpdateCollaboratorPermissions
+  canUpdateCollaboratorPermissions,
+  normalizeCollaborators
 } = require('../utils/listPermissions');
 
 /**
@@ -215,8 +216,11 @@ router.delete('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => 
 router.put('/:id/reaction', asyncHandler(async (req, res) => {
   const list = await List.findById(req.params.id);
   if (!list) throw createHttpError(404, 'List not found');
-  await ensureStructuredCollaborators(list);
-  if (!canViewList(list, req.user.uid)) {
+  const normalizedList = {
+    ...(typeof list.toObject === 'function' ? list.toObject() : list),
+    collaborators: normalizeCollaborators(list.collaborators || [])
+  };
+  if (!canViewList(normalizedList, req.user.uid)) {
     throw createHttpError(403, 'Forbidden');
   }
 
@@ -241,7 +245,7 @@ router.put('/:id/reaction', asyncHandler(async (req, res) => {
     );
   }
 
-  const [enrichedList] = await enrichListsWithStats([list.toObject()], req.user.uid);
+  const [enrichedList] = await enrichListsWithStats([normalizedList], req.user.uid);
   return res.json(enrichedList);
 }));
 
