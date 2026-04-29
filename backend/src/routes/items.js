@@ -1,15 +1,19 @@
 // backend/src/routes/items.js
 const express       = require('express')
+const mongoose = require('mongoose');
 const router        = express.Router()
 const Item          = require('../models/Item')
 const List          = require('../models/List')
-const Category      = require('../models/Category')       // ← make sure this is imported
 const { authenticate, optionalAuth } = require('../middlewares/auth')
 const { asyncHandler, createHttpError } = require('../utils/http')
 const { hasAdminRole } = require('../utils/roles')
 const {
   addSubCategoryToCategory
 } = require('../services/listService')
+const {
+  prepareNewItemForStorage,
+  serializeItemForResponse
+} = require('../services/privateListEncryption')
 const {
   optionalTrimmedString,
   requireBoolean,
@@ -45,7 +49,8 @@ router.get('/:listId', optionalAuth, asyncHandler(async (req, res) => {
   }
 
   const items = await Item.find({ listId: req.params.listId }).lean()
-  const result = items.map(i => ({
+  const serializedItems = await Promise.all(items.map(serializeItemForResponse))
+  const result = serializedItems.map(i => ({
     ...i,
     // The persisted source of truth is `doneBy`; `done` is a response-only
     // convenience field computed for the current viewer.
@@ -78,17 +83,19 @@ router.post('/', authenticate, asyncHandler(async (req, res) => {
 
   // 1) Create the Item
   const item = new Item({
+    _id: new mongoose.Types.ObjectId(),
     listId,
     text,
     subCategory,
     addedBy: req.user.uid
   })
+  await prepareNewItemForStorage(item, parentList)
   const saved = await item.save()
 
   // 2) If a subCategory was provided, add it to the Category
   await addSubCategoryToCategory(parentList.categoryId, saved.subCategory)
 
-  return res.status(201).json(saved)
+  return res.status(201).json(await serializeItemForResponse(saved))
 }))
 
 /**
@@ -121,7 +128,7 @@ router.put('/:id', authenticate, asyncHandler(async (req, res) => {
   const updated = await item.save()
   // Compute `done` for this user
   const response = {
-    ...updated.toObject(),
+    ...(await serializeItemForResponse(updated)),
     done: updated.doneBy.includes(uid)
   }
   return res.json(response)
@@ -151,10 +158,14 @@ router.patch('/:id', authenticate, asyncHandler(async (req, res) => {
     item.subCategory = subCategory
   }
 
+  if (text !== undefined || parentList.isPublic) {
+    await prepareNewItemForStorage(item, parentList)
+  }
+
   const updated = await item.save()
   await addSubCategoryToCategory(parentList.categoryId, updated.subCategory)
 
-  return res.json(updated)
+  return res.json(await serializeItemForResponse(updated))
 }))
 
 /**

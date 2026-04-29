@@ -4,7 +4,15 @@ const { DEFAULT_ITEM_SUBCATEGORY } = require('../config/constants');
 
 const ItemSchema = new mongoose.Schema({
   listId:      { type: mongoose.Schema.Types.ObjectId, ref: 'List', required: true },
-  text:        { type: String, required: true, trim: true },
+  text:        { type: String, trim: true, default: null },
+  textPlain:   { type: String, trim: true, default: null },
+  textEncrypted:{ type: mongoose.Schema.Types.Mixed, default: null },
+  encryptionState: {
+    type: String,
+    enum: ['plaintext', 'encrypted'],
+    default: 'plaintext'
+  },
+  encryptionVersion: { type: String, trim: true, default: null },
   subCategory: {
     type: String,
     required: true,

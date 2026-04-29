@@ -13,6 +13,7 @@ const {
   ADMIN_UID,
   FIREBASE_SERVICE_ACCOUNT_KEY
 } = require('./config/env');
+const { assertCryptoConfig } = require('./services/cryptoService');
 
 // import your Category model
 const Category = require('./models/Category');
@@ -23,6 +24,8 @@ const app = createApp();
 if (!FIREBASE_SERVICE_ACCOUNT_KEY) {
   throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY is required');
 }
+
+assertCryptoConfig();
 
 admin.initializeApp({
   credential: admin.credential.cert(FIREBASE_SERVICE_ACCOUNT_KEY)

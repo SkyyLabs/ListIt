@@ -29,6 +29,7 @@ Each item stores a `doneBy` array in MongoDB. The backend converts that into a u
 | --- | --- |
 | Frontend | React 18, Axios, Framer Motion, Tailwind CSS, Firebase Web SDK |
 | Backend | Node.js, Express, MongoDB, Mongoose, Firebase Admin |
+| Internal crypto service | Python 3, `cryptography`, local envelope encryption |
 | Auth | Firebase Authentication with Google sign-in |
 | Testing | React Testing Library on the frontend, Node built-in test runner on the backend |
 
@@ -78,6 +79,8 @@ CORS_ORIGIN=http://localhost:3000
 MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
 ADMIN_UID=<firebase-user-uid-for-seeded-categories>
 FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"listit","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"...","client_id":"...","auth_uri":"...","token_uri":"...","auth_provider_x509_cert_url":"...","client_x509_cert_url":"..."}
+CRYPTO_SERVICE_URL=http://127.0.0.1:5050
+CRYPTO_SERVICE_TOKEN=<shared-internal-token>
 ```
 
 Notes:
@@ -85,6 +88,24 @@ Notes:
 - `ADMIN_UID` is used only when seeding the default public categories so those categories have a real owner.
 - Runtime admin access is not controlled by `ADMIN_UID`. Runtime admin access uses Firebase custom claims.
 - `FIREBASE_SERVICE_ACCOUNT_KEY` must be a single-line JSON string.
+- `CRYPTO_SERVICE_URL` and `CRYPTO_SERVICE_TOKEN` are required for private-list encryption.
+
+### Crypto service environment
+
+The Python crypto service reads its config from shell environment variables:
+
+```env
+CRYPTO_SERVICE_TOKEN=<same-shared-internal-token>
+LISTER_LOCAL_KMS_PASSPHRASE=<local-dev-passphrase>
+LOCAL_MASTER_KEY_FILE=/absolute/path/to/security/.local/master_key.json
+CRYPTO_SERVICE_HOST=127.0.0.1
+CRYPTO_SERVICE_PORT=5050
+```
+
+Notes:
+
+- This local-master-key setup is development-only.
+- `LOCAL_MASTER_KEY_FILE` should point to a writable non-committed path.
 
 ### `frontend/.env`
 
@@ -174,6 +195,17 @@ cd backend
 npm run dev
 ```
 
+Start the internal crypto service in another terminal:
+
+```bash
+python3 -m venv security/.venv
+source security/.venv/bin/activate
+pip install -r security/requirements.txt
+export CRYPTO_SERVICE_TOKEN=<shared-internal-token>
+export LISTER_LOCAL_KMS_PASSPHRASE=<local-dev-passphrase>
+python3 -m security.crypto_service.app
+```
+
 Start the frontend in another terminal:
 
 ```bash
@@ -185,6 +217,7 @@ Open:
 
 - Frontend: `http://localhost:3000`
 - Backend health check: `http://localhost:4000`
+- Crypto service health check: `http://127.0.0.1:5050/health`
 
 On first backend startup, the app seeds a default set of public categories.
 
@@ -207,6 +240,13 @@ cd backend
 npm run dev
 npm start
 npm test
+```
+
+### Crypto service
+
+```bash
+PYTHONPATH=. python3 -m unittest discover -s security/tests -t .
+python3 -m compileall security
 ```
 
 ## Authorization model

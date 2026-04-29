@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const express = require('express');
+const mongoose = require('mongoose');
 const { PassThrough, Readable, Writable } = require('node:stream');
 const Category = require('../models/Category');
 const Item = require('../models/Item');
@@ -13,9 +14,11 @@ const authModulePath = require.resolve('../middlewares/auth');
 const categoriesRoutePath = require.resolve('./categories');
 const itemsRoutePath = require.resolve('./items');
 const listsRoutePath = require.resolve('./lists');
+const privateListEncryptionPath = require.resolve('../services/privateListEncryption');
 
 let app;
 let originalCategoryFindById;
+let originalCategoryFindOne;
 let originalItemFind;
 let originalItemFindById;
 let originalListFindById;
@@ -26,6 +29,10 @@ let originalListReactionFindOneAndUpdate;
 let originalListReactionDeleteOne;
 let originalListCreate;
 let originalItemInsertMany;
+let originalListPrototypeSave;
+let originalItemPrototypeSave;
+let originalCategoryPrototypeSave;
+let originalMongooseStartSession;
 
 function createRequest({ method, pathName, headers = {}, body }) {
   const normalizedHeaders = { ...headers };
@@ -138,6 +145,134 @@ function buildApp() {
     }
   };
 
+  require.cache[privateListEncryptionPath] = {
+    id: privateListEncryptionPath,
+    filename: privateListEncryptionPath,
+    loaded: true,
+    exports: {
+      async cloneItemsSnapshotForDuplicate(items) {
+        return items;
+      },
+      async cloneListSnapshotForDuplicate(list) {
+        return {
+          ...list,
+          title: list.titlePlain ?? list.title ?? null
+        };
+      },
+      async convertListToPrivate(list, items = []) {
+        const title = list.titlePlain ?? list.title ?? null;
+        list.titleEncrypted = title
+          ? { version: 'v1', ciphertext_b64: Buffer.from(title).toString('base64') }
+          : null;
+        list.titlePlain = null;
+        list.title = null;
+        list.encryptionState = 'encrypted';
+        list.encryptionVersion = 'v1';
+
+        items.forEach(item => {
+          const text = item.textPlain ?? item.text ?? null;
+          item.textEncrypted = text
+            ? { version: 'v1', ciphertext_b64: Buffer.from(text).toString('base64') }
+            : null;
+          item.textPlain = null;
+          item.text = null;
+          item.encryptionState = 'encrypted';
+          item.encryptionVersion = 'v1';
+        });
+      },
+      async normalizePublicListForStorage(list, items = []) {
+        list.titlePlain = list.titlePlain ?? list.title ?? 'Recovered';
+        list.title = list.titlePlain;
+        list.titleEncrypted = null;
+        list.encryptionState = 'plaintext';
+        list.encryptionVersion = null;
+
+        items.forEach(item => {
+          item.textPlain = item.textPlain ?? item.text ?? 'Recovered';
+          item.text = item.textPlain;
+          item.textEncrypted = null;
+          item.encryptionState = 'plaintext';
+          item.encryptionVersion = null;
+        });
+      },
+      async prepareNewItemForStorage(item, parentList) {
+        if (parentList.isPublic) {
+          item.textPlain = item.text;
+          item.textEncrypted = null;
+          item.text = item.textPlain;
+          item.encryptionState = 'plaintext';
+          item.encryptionVersion = null;
+          return;
+        }
+        item.textEncrypted = {
+          version: 'v1',
+          ciphertext_b64: Buffer.from(item.text ?? item.textPlain ?? '').toString('base64')
+        };
+        item.text = null;
+        item.textPlain = null;
+        item.encryptionState = 'encrypted';
+        item.encryptionVersion = 'v1';
+      },
+      async prepareNewListForStorage(list) {
+        if (list.isPublic) {
+          list.titlePlain = list.title;
+          list.titleEncrypted = null;
+          list.title = list.titlePlain;
+          list.encryptionState = 'plaintext';
+          list.encryptionVersion = null;
+          return;
+        }
+        list.titleEncrypted = {
+          version: 'v1',
+          ciphertext_b64: Buffer.from(list.title ?? list.titlePlain ?? '').toString('base64')
+        };
+        list.title = null;
+        list.titlePlain = null;
+        list.encryptionState = 'encrypted';
+        list.encryptionVersion = 'v1';
+      },
+      async normalizePrivateListForStorage(list, items = []) {
+        const title = list.titlePlain ?? list.title ?? null;
+        list.titleEncrypted = title
+          ? { version: 'v1', ciphertext_b64: Buffer.from(title).toString('base64') }
+          : null;
+        list.titlePlain = null;
+        list.title = null;
+        list.encryptionState = 'encrypted';
+        list.encryptionVersion = 'v1';
+
+        items.forEach(item => {
+          const text = item.textPlain ?? item.text ?? null;
+          item.textEncrypted = text
+            ? { version: 'v1', ciphertext_b64: Buffer.from(text).toString('base64') }
+            : null;
+          item.textPlain = null;
+          item.text = null;
+          item.encryptionState = 'encrypted';
+          item.encryptionVersion = 'v1';
+        });
+      },
+      async serializeItemForResponse(item) {
+        const plain = typeof item.toObject === 'function' ? item.toObject() : { ...item };
+        plain.text = plain.textPlain ?? plain.text ?? 'decrypted-item';
+        delete plain.textEncrypted;
+        delete plain.textPlain;
+        delete plain.encryptionState;
+        delete plain.encryptionVersion;
+        return plain;
+      },
+      async serializeListForResponse(list) {
+        const plain = typeof list.toObject === 'function' ? list.toObject() : { ...list };
+        plain.title = plain.titlePlain ?? plain.title ?? 'decrypted-list';
+        delete plain.titleEncrypted;
+        delete plain.titlePlain;
+        delete plain.encryptionState;
+        delete plain.encryptionVersion;
+        return plain;
+      }
+    }
+  };
+
   delete require.cache[categoriesRoutePath];
   delete require.cache[itemsRoutePath];
   delete require.cache[listsRoutePath];
@@ -157,6 +292,7 @@ function buildApp() {
 
 test.before(() => {
   originalCategoryFindById = Category.findById;
+  originalCategoryFindOne = Category.findOne;
   originalItemFind = Item.find;
   originalItemFindById = Item.findById;
   originalListFindById = List.findById;
@@ -167,10 +303,15 @@ test.before(() => {
   originalListReactionDeleteOne = ListReaction.deleteOne;
   originalListCreate = List.create;
   originalItemInsertMany = Item.insertMany;
+  originalListPrototypeSave = List.prototype.save;
+  originalItemPrototypeSave = Item.prototype.save;
+  originalCategoryPrototypeSave = Category.prototype.save;
+  originalMongooseStartSession = mongoose.startSession;
 });
 
 test.after(() => {
   Category.findById = originalCategoryFindById;
+  Category.findOne = originalCategoryFindOne;
   Item.find = originalItemFind;
   Item.findById = originalItemFindById;
   List.findById = originalListFindById;
@@ -181,7 +322,12 @@ test.after(() => {
   ListReaction.deleteOne = originalListReactionDeleteOne;
   List.create = originalListCreate;
   Item.insertMany = originalItemInsertMany;
+  List.prototype.save = originalListPrototypeSave;
+  Item.prototype.save = originalItemPrototypeSave;
+  Category.prototype.save = originalCategoryPrototypeSave;
+  mongoose.startSession = originalMongooseStartSession;
   delete require.cache[authModulePath];
+  delete require.cache[privateListEncryptionPath];
   delete require.cache[categoriesRoutePath];
   delete require.cache[itemsRoutePath];
   delete require.cache[listsRoutePath];
@@ -193,8 +339,16 @@ test.beforeEach(() => {
   Category.findById = async () => ({
     _id: 'cat-1',
     ownerUid: 'owner-1',
+    subCategories: [],
+    save: async function save() {
+      return this;
+    },
     remove: async () => {}
   });
+  Category.findOne = async () => ({ _id: 'cat-1', name: 'Other' });
+  Category.prototype.save = async function save() {
+    return this;
+  };
 
   Item.find = () => ({
     lean: async () => [{ _id: 'item-1', doneBy: ['collab-1'], text: 'Milk' }]
@@ -219,9 +373,17 @@ test.beforeEach(() => {
     }
   });
 
+  List.prototype.save = async function save() {
+    return this;
+  };
+  Item.prototype.save = async function save() {
+    return this;
+  };
+
   List.findById = listId => ({
     lean: async () => ({
       _id: listId,
+      categoryId: 'cat-1',
       ownerUid: 'owner-1',
       collaborators: ['collab-1'],
       isPublic: false
@@ -229,8 +391,18 @@ test.beforeEach(() => {
     remove: async () => {}
   });
 
+  mongoose.startSession = async () => ({
+    async withTransaction(work) {
+      return work();
+    },
+    async endSession() {}
+  });
+
   Item.countDocuments = async () => 0;
   List.find = () => ({
+    populate() {
+      return this;
+    },
     select() {
       return this;
     },
@@ -273,6 +445,7 @@ test('GET /items/:listId allows a collaborator on a private list', async () => {
   const items = JSON.parse(text);
   assert.equal(items.length, 1);
   assert.equal(items[0].done, true);
+  assert.equal(items[0].text, 'Milk');
 });
 
 test('DELETE /categories/:id rejects a non-admin user', async () => {
@@ -349,9 +522,10 @@ test('PUT /lists/:id/reaction supports legacy string collaborators without savin
 });
 
 test('POST /lists/:id/duplicate creates a private personal copy with only current user progress', async () => {
+  const sourceListId = '507f191e810c19729de860ea';
   List.findById = () => ({
     lean: async () => ({
-      _id: 'list-1',
+      _id: sourceListId,
       title: 'Treks',
       categoryId: 'cat-1',
       ownerUid: 'owner-1',
@@ -364,7 +538,7 @@ test('POST /lists/:id/duplicate creates a private personal copy with only curren
     lean: async () => [
       {
         _id: 'item-1',
-        listId: 'list-1',
+        listId: sourceListId,
         text: 'Kedarnath',
         subCategory: 'North India',
         addedBy: 'owner-1',
@@ -372,7 +546,7 @@ test('POST /lists/:id/duplicate creates a private personal copy with only curren
       },
       {
         _id: 'item-2',
-        listId: 'list-1',
+        listId: sourceListId,
         text: 'Triund',
         subCategory: 'North India',
         addedBy: 'owner-1',
@@ -403,4 +577,63 @@ test('POST /lists/:id/duplicate creates a private personal copy with only curren
   assert.equal(insertedItems.length, 2);
   assert.deepEqual(insertedItems.map(item => item.addedBy), ['collab-1', 'collab-1']);
   assert.deepEqual(insertedItems.map(item => item.doneBy), [['collab-1'], []]);
+});
+
+test('POST /lists creates an encrypted private list and returns plaintext title', async () => {
+  const saves = [];
+  List.prototype.save = async function save() {
+    saves.push(this.toObject());
+    return this;
+  };
+
+  const { status, text } = await request('/lists', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer ownerToken',
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      title: 'Secrets',
+      categoryName: 'Other',
+      isPublic: false
+    })
+  });
+
+  assert.equal(status, 201);
+  const payload = JSON.parse(text);
+  assert.equal(payload.title, 'decrypted-list');
+  assert.equal(payload.ownerUid, 'owner-1');
+  assert.equal(saves.length, 1);
+  assert.equal(saves[0].title, null);
+  assert.equal(saves[0].titlePlain, null);
+  assert.ok(saves[0].titleEncrypted);
+});
+
+test('POST /items creates an encrypted private item without plaintext persistence', async () => {
+  const saves = [];
+  Item.prototype.save = async function save() {
+    saves.push(this.toObject());
+    return this;
+  };
+
+  const { status, text } = await request('/items', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer ownerToken',
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      listId: 'list-1',
+      text: 'Hidden step',
+      subCategory: 'Misc'
+    })
+  });
+
+  assert.equal(status, 201);
+  const payload = JSON.parse(text);
+  assert.equal(payload.text, 'decrypted-item');
+  assert.equal(saves.length, 1);
+  assert.equal(saves[0].text, null);
+  assert.equal(saves[0].textPlain, null);
+  assert.ok(saves[0].textEncrypted);
 });

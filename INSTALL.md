@@ -4,6 +4,7 @@ This project has two apps:
 
 - `backend/` for the Express + MongoDB + Firebase Admin API
 - `frontend/` for the React app
+- `security/` for the development-only Python crypto service used by private-list encryption
 
 ## Requirements
 
@@ -44,6 +45,8 @@ CORS_ORIGIN=http://localhost:3000
 MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
 ADMIN_UID=<firebase-user-uid-for-seeded-categories>
 FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"...","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"...","client_id":"...","auth_uri":"...","token_uri":"...","auth_provider_x509_cert_url":"...","client_x509_cert_url":"..."}
+CRYPTO_SERVICE_URL=http://127.0.0.1:5050
+CRYPTO_SERVICE_TOKEN=<shared-internal-token>
 ```
 
 Frontend example:
@@ -59,6 +62,16 @@ REACT_APP_FIREBASE_APP_ID=<app-id>
 REACT_APP_FIREBASE_MEASUREMENT_ID=<optional-measurement-id>
 ```
 
+Crypto service environment:
+
+```env
+CRYPTO_SERVICE_TOKEN=<shared-internal-token>
+LISTER_LOCAL_KMS_PASSPHRASE=<local-dev-passphrase>
+LOCAL_MASTER_KEY_FILE=/absolute/path/to/security/.local/master_key.json
+CRYPTO_SERVICE_HOST=127.0.0.1
+CRYPTO_SERVICE_PORT=5050
+```
+
 ## 4. Run the backend
 
 ```bash
@@ -66,14 +79,25 @@ cd backend
 npm run dev
 ```
 
-## 5. Run the frontend
+## 5. Run the crypto service
+
+```bash
+python3 -m venv security/.venv
+source security/.venv/bin/activate
+pip install -r security/requirements.txt
+export CRYPTO_SERVICE_TOKEN=<shared-internal-token>
+export LISTER_LOCAL_KMS_PASSPHRASE=<local-dev-passphrase>
+python3 -m security.crypto_service.app
+```
+
+## 6. Run the frontend
 
 ```bash
 cd frontend
 npm start
 ```
 
-## 6. Useful commands
+## 7. Useful commands
 
 Backend tests:
 
@@ -101,6 +125,13 @@ Frontend production build:
 ```bash
 cd frontend
 npm run build
+```
+
+Crypto service tests and validation:
+
+```bash
+PYTHONPATH=. python3 -m unittest discover -s security/tests -t .
+python3 -m compileall security
 ```
 
 ## Notes

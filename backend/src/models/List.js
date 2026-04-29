@@ -9,7 +9,15 @@ const CollaboratorSchema = new mongoose.Schema({
 }, { _id: false });
 
 const ListSchema = new mongoose.Schema({
-  title:         { type: String, required: true, trim: true },
+  title:         { type: String, trim: true, default: null },
+  titlePlain:    { type: String, trim: true, default: null },
+  titleEncrypted:{ type: mongoose.Schema.Types.Mixed, default: null },
+  encryptionState: {
+    type: String,
+    enum: ['plaintext', 'encrypted'],
+    default: 'plaintext'
+  },
+  encryptionVersion: { type: String, trim: true, default: null },
   categoryId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   ownerUid:      { type: String, required: true, trim: true },
   isPublic:      { type: Boolean, default: true },

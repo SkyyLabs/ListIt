@@ -1,5 +1,6 @@
 // backend/src/routes/lists.js
 const express = require('express');
+const mongoose = require('mongoose');
 const router  = express.Router();
 const List    = require('../models/List');
 const Item    = require('../models/Item');
@@ -7,6 +8,15 @@ const ListReaction = require('../models/ListReaction');
 const { authenticate, optionalAuth } = require('../middlewares/auth');
 const { asyncHandler, createHttpError } = require('../utils/http');
 const { hasAdminRole } = require('../utils/roles');
+const {
+  cloneItemsSnapshotForDuplicate,
+  cloneListSnapshotForDuplicate,
+  convertListToPrivate,
+  normalizePublicListForStorage,
+  prepareNewItemForStorage,
+  prepareNewListForStorage,
+  serializeListForResponse
+} = require('../services/privateListEncryption');
 const {
   assertListOwner,
   buildVisibleListFilter,
@@ -30,6 +40,7 @@ const {
   canUpdateCollaboratorPermissions,
   normalizeCollaborators
 } = require('../utils/listPermissions');
+const { runInTransaction } = require('../utils/mongoTransaction');
 
 /**
  * GET /lists
@@ -42,13 +53,14 @@ router.get('/', optionalAuth, asyncHandler(async (req, res) => {
   const docs = await List.find(filter)
     .populate('categoryId')
     .lean();
+  const serializedDocs = await Promise.all(docs.map(serializeListForResponse));
 
   let lists;
   try {
-    lists = await enrichListsWithStats(docs, uid);
+    lists = await enrichListsWithStats(serializedDocs, uid);
   } catch (err) {
     console.error('⚠️ enrichLists threw, returning raw docs', err);
-    lists = docs;
+    lists = serializedDocs;
   }
   return res.json(lists);
 }));
@@ -73,14 +85,16 @@ router.post('/', asyncHandler(async (req, res) => {
   const category = await findOrCreateCategoryByName(categoryName, uid);
 
   const list = new List({
+    _id: new mongoose.Types.ObjectId(),
     title,
     categoryId: category._id,
     isPublic: !!isPublic,
     ownerUid: uid,
     collaborators: []
   });
+  await prepareNewListForStorage(list);
   const saved = await list.save();
-  return res.status(201).json(saved);
+  return res.status(201).json(await serializeListForResponse(saved));
 }));
 
 /**
@@ -95,12 +109,44 @@ router.put('/:id', asyncHandler(async (req, res) => {
 
   const title = optionalTrimmedString(req.body.title, 'Title required');
   const { categoryId, isPublic } = req.body;
-  if (title !== undefined) list.title = title;
-  if (categoryId !== undefined) list.categoryId = categoryId;
-  if (isPublic !== undefined) list.isPublic = !!isPublic;
+  const currentIsPublic = list.isPublic;
+  const updated = await runInTransaction(async session => {
+    let listItems = [];
+    const needsItems =
+      currentIsPublic !== !!isPublic || (!currentIsPublic && title !== undefined);
+    if (needsItems) {
+      let itemsQuery = Item.find({ listId: list._id });
+      if (session && typeof itemsQuery.session === 'function') {
+        itemsQuery = itemsQuery.session(session);
+      }
+      listItems = await itemsQuery;
+    }
 
-  const updated = await list.save();
-  return res.json(updated);
+    if (title !== undefined) {
+      list.title = title;
+      list.titlePlain = title;
+    }
+    if (categoryId !== undefined) list.categoryId = categoryId;
+    if (isPublic !== undefined) list.isPublic = !!isPublic;
+
+    if (isPublic !== undefined && currentIsPublic !== !!isPublic) {
+      if (list.isPublic) {
+        await normalizePublicListForStorage(list, listItems);
+      } else {
+        await convertListToPrivate(list, listItems);
+      }
+    } else if (!list.isPublic) {
+      await convertListToPrivate(list, listItems);
+    } else {
+      await prepareNewListForStorage(list);
+    }
+
+    for (const item of listItems) {
+      await item.save(session ? { session } : undefined);
+    }
+    return list.save(session ? { session } : undefined);
+  });
+  return res.json(await serializeListForResponse(updated));
 }));
 
 /**
@@ -167,7 +213,7 @@ router.post('/:id/collaborators', asyncHandler(async (req, res) => {
   if (existingIndex === -1) {
     await list.save();
   }
-  return res.json(list);
+  return res.json(await serializeListForResponse(list));
 }));
 
 router.put('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => {
@@ -191,7 +237,7 @@ router.put('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => {
     req.body.permissions
   );
   await list.save();
-  return res.json(list);
+  return res.json(await serializeListForResponse(list));
 }));
 
 /**
@@ -211,7 +257,7 @@ router.delete('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => 
     collaborator => collaborator.uid !== req.params.collabUid
   );
   await list.save();
-  return res.json(list);
+  return res.json(await serializeListForResponse(list));
 }));
 
 router.put('/:id/reaction', asyncHandler(async (req, res) => {
@@ -246,7 +292,10 @@ router.put('/:id/reaction', asyncHandler(async (req, res) => {
     );
   }
 
-  const [enrichedList] = await enrichListsWithStats([normalizedList], req.user.uid);
+  const [enrichedList] = await enrichListsWithStats(
+    [await serializeListForResponse(normalizedList)],
+    req.user.uid
+  );
   return res.json(enrichedList);
 }));
 
@@ -262,34 +311,47 @@ router.post('/:id/duplicate', asyncHandler(async (req, res) => {
     throw createHttpError(403, 'Forbidden');
   }
 
-  const duplicatedList = await List.create({
-    title: sourceList.title,
-    categoryId: sourceList.categoryId,
-    ownerUid: req.user.uid,
-    isPublic: false,
-    sourceListId: sourceList._id,
-    sourceTitle: sourceList.title,
-    sourceOwnerUid: sourceList.ownerUid,
-    collaborators: []
+  const duplicatedList = await runInTransaction(async session => {
+    const sourceSnapshot = await cloneListSnapshotForDuplicate(sourceList);
+    const nextList = new List({
+      _id: new mongoose.Types.ObjectId(),
+      title: sourceSnapshot.title,
+      categoryId: sourceList.categoryId,
+      ownerUid: req.user.uid,
+      isPublic: false,
+      sourceListId: sourceList._id,
+      sourceTitle: sourceSnapshot.title,
+      sourceOwnerUid: sourceList.ownerUid,
+      collaborators: []
+    });
+    await prepareNewListForStorage(nextList);
+    await nextList.save(session ? { session } : undefined);
+
+    const sourceItems = await Item.find({ listId: sourceList._id }).lean();
+    if (sourceItems.length) {
+      const sourceItemSnapshots = await cloneItemsSnapshotForDuplicate(sourceItems);
+      const newItems = await Promise.all(sourceItemSnapshots.map(async item => {
+        const nextItem = new Item({
+          _id: new mongoose.Types.ObjectId(),
+          listId: nextList._id,
+          text: item.text,
+          subCategory: item.subCategory,
+          addedBy: req.user.uid,
+          doneBy: Array.isArray(item.doneBy) && item.doneBy.includes(req.user.uid)
+            ? [req.user.uid]
+            : []
+        });
+        await prepareNewItemForStorage(nextItem, nextList);
+        return typeof nextItem.toObject === 'function' ? nextItem.toObject() : nextItem;
+      }));
+      await Item.insertMany(newItems, session ? { session } : undefined);
+    }
+
+    return nextList;
   });
 
-  const sourceItems = await Item.find({ listId: sourceList._id }).lean();
-  if (sourceItems.length) {
-    await Item.insertMany(
-      sourceItems.map(item => ({
-        listId: duplicatedList._id,
-        text: item.text,
-        subCategory: item.subCategory,
-        addedBy: req.user.uid,
-        doneBy: Array.isArray(item.doneBy) && item.doneBy.includes(req.user.uid)
-          ? [req.user.uid]
-          : []
-      }))
-    );
-  }
-
   const [enrichedList] = await enrichListsWithStats(
-    [duplicatedList.toObject()],
+    [await serializeListForResponse(duplicatedList)],
     req.user.uid
   );
   return res.status(201).json(enrichedList);
