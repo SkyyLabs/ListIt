@@ -285,10 +285,12 @@ export default function ListView({ user, viewMode = 'home' }) {
   );
   const isDiscoverList = list => (
     list.isPublic &&
-    !isOwned(list) &&
-    !isCollaborating(list) &&
-    !isPinnedList(list) &&
-    !isLiked(list)
+    (!user || (
+      !isOwned(list) &&
+      !isCollaborating(list) &&
+      !isPinnedList(list) &&
+      !isLiked(list)
+    ))
   );
   const visible = lists.filter(list =>
     viewMode === 'discover' ? isDiscoverList(list) : isHomeList(list)
@@ -339,13 +341,15 @@ export default function ListView({ user, viewMode = 'home' }) {
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
             {viewMode === 'discover'
-              ? 'Browse public lists you have not pinned, liked, owned, or joined yet.'
+              ? user
+                ? 'Browse public lists you have not pinned, liked, owned, or joined yet.'
+                : 'Browse public lists from the ListIt community.'
               : 'Private, pinned, collaborative, owned, and liked lists collected in one place.'}
           </p>
         </div>
 
         <div className="control-bar flex flex-wrap items-center gap-3">
-        {user && (
+        {user && viewMode === 'home' && (
           <button
             onClick={() => setShowNewList(true)}
             className="primary-button"
@@ -354,7 +358,7 @@ export default function ListView({ user, viewMode = 'home' }) {
           </button>
         )}
 
-        {isAdmin && (
+        {isAdmin && viewMode === 'home' && (
           <button
             onClick={() => setShowCatManager(v => !v)}
             className="secondary-button"
@@ -486,7 +490,9 @@ export default function ListView({ user, viewMode = 'home' }) {
           </h2>
           <p className="mt-2 text-sm text-slate-600">
             {viewMode === 'discover'
-              ? 'Public lists you pin, like, own, or collaborate on move out of Discover.'
+              ? user
+                ? 'Public lists you pin, like, own, or collaborate on move out of Discover.'
+                : 'Public lists will appear here as the community creates them.'
               : 'Create a list, accept an invite, pin a public list, or like one from Discover.'}
           </p>
         </div>

@@ -45,12 +45,22 @@ export default function NavBar({
             </button>
           </div>
         ) : (
-          <button
-            onClick={onLogin}
-            className="primary-button"
-          >
-            Sign in with Google
-          </button>
+          <div className="flex items-center gap-2">
+            {currentPage !== 'discover' && (
+              <button
+                onClick={() => onNavigate('discover')}
+                className="secondary-button"
+              >
+                Discover
+              </button>
+            )}
+            <button
+              onClick={onLogin}
+              className="primary-button"
+            >
+              Sign in with Google
+            </button>
+          </div>
         )}
       </div>
     </header>

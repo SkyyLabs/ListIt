@@ -8,11 +8,13 @@ import InfoPage from './components/InfoPage';
 import { useAuth } from './contexts/AuthContext';
 
 function getPageFromPath(pathname) {
+  if (pathname === '/') return 'landing';
+  if (pathname === '/home') return 'home';
   if (pathname === '/discover') return 'discover';
   if (pathname === '/about') return 'about';
   if (pathname === '/help') return 'help';
   if (pathname === '/contact') return 'contact';
-  return 'home';
+  return 'landing';
 }
 
 function App() {
@@ -28,10 +30,22 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  useEffect(() => {
+    if (user && page === 'landing' && !inviteMatch) {
+      window.history.replaceState({}, '', '/home');
+      setPage('home');
+    }
+  }, [inviteMatch, page, user]);
+
   const navigate = nextPage => {
-    const path = nextPage === 'home' ? '/' : `/${nextPage}`;
+    const path = nextPage === 'landing' ? '/' : `/${nextPage}`;
     window.history.pushState({}, '', path);
     setPage(nextPage);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('discover');
   };
 
   const renderContent = () => {
@@ -43,11 +57,15 @@ function App() {
       return <InfoPage page={page} />;
     }
 
-    if (user) {
-      return <ListView user={user} viewMode={page === 'discover' ? 'discover' : 'home'} />;
+    if (page === 'discover') {
+      return <ListView user={user} viewMode="discover" />;
     }
 
-    return <LandingPage onLogin={login} />;
+    if (user && page === 'home') {
+      return <ListView user={user} viewMode="home" />;
+    }
+
+    return <LandingPage onDiscover={() => navigate('discover')} onLogin={login} />;
   };
 
   return (
@@ -56,7 +74,7 @@ function App() {
         currentPage={page}
         user={user}
         onLogin={login}
-        onLogout={logout}
+        onLogout={handleLogout}
         onNavigate={navigate}
       />
       <main className={`flex-1 overflow-auto ${user || inviteMatch ? 'px-4 py-6 sm:px-6 lg:px-8' : ''}`}>

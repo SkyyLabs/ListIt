@@ -15,7 +15,7 @@ const boardItems = [
   ['Compare rail passes', 'Planning', true]
 ];
 
-export default function LandingPage({ onLogin }) {
+export default function LandingPage({ onDiscover, onLogin }) {
   return (
     <div className="overflow-hidden">
       <section className="relative mx-auto grid min-h-[calc(100vh-72px)] max-w-7xl gap-10 px-4 pb-10 pt-8 sm:px-6 lg:grid-cols-[0.96fr_1.04fr] lg:items-center lg:px-8">
@@ -43,6 +43,9 @@ export default function LandingPage({ onLogin }) {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <button onClick={onLogin} className="primary-button px-6 py-3">
               Start with Google
+            </button>
+            <button onClick={onDiscover} className="secondary-button px-6 py-3">
+              Explore public lists
             </button>
             <div className="chip">Firebase auth</div>
             <div className="chip">Mongo-backed progress</div>
