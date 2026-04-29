@@ -73,6 +73,7 @@ export default function ListDetail({
   ]);
   const [showNewItem, setShowNewItem]             = useState(false);
   const [error, setError]                         = useState('');
+  const [dragging, setDragging]                   = useState(false);
 
   // Edit mode & saving
   const [editMode, setEditMode] = useState(false);
@@ -488,21 +489,27 @@ export default function ListDetail({
     <motion.div
       draggable={isPinned}
       layout
-      onDragEnd={onDragEnd}
+      onDragEnd={event => {
+        setDragging(false);
+        onDragEnd?.(event);
+      }}
       onDragOver={onDragOver}
-      onDragStart={onDragStart}
+      onDragStart={event => {
+        setDragging(true);
+        onDragStart?.(event);
+      }}
       onDrop={onDrop}
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.99 }}
-      className={`relative flex min-h-[460px] flex-col overflow-hidden rounded-[30px] border border-white/80 ${color} p-5 shadow-[0_22px_70px_-45px_rgba(15,23,42,0.7)] sm:p-6`}
+      className={`relative flex min-h-[460px] flex-col overflow-hidden rounded-[30px] border border-white/80 ${color} p-5 shadow-[0_22px_70px_-45px_rgba(15,23,42,0.7)] sm:p-6 ${isPinned ? dragging ? 'cursor-grabbing' : 'cursor-grab' : ''}`}
     >
       {isPinned && (
         <div
-          className="absolute left-4 top-4 grid h-9 w-9 grid-cols-2 place-items-center gap-0.5 rounded-full bg-white/55 p-2 text-slate-500"
+          className={`absolute left-0 top-0 z-10 grid h-14 w-14 grid-cols-3 place-items-center gap-1 rounded-br-[26px] bg-white/55 p-4 text-slate-500 shadow-sm backdrop-blur ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           title="Drag pinned list"
         >
-          {Array.from({ length: 6 }).map((_, index) => (
-            <span key={index} className="h-1 w-1 rounded-full bg-current" />
+          {Array.from({ length: 9 }).map((_, index) => (
+            <span key={index} className="h-1.5 w-1.5 rounded-full bg-current" />
           ))}
         </div>
       )}
