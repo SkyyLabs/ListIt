@@ -1,7 +1,13 @@
 import React from 'react';
 import { APP_NAME } from '../config/constants';
 
-export default function NavBar({ user, onLogin, onLogout }) {
+export default function NavBar({
+  currentPage,
+  onLogin,
+  onLogout,
+  onNavigate,
+  user
+}) {
   return (
     <header className="sticky top-0 z-30 w-full border-b border-white/70 bg-white/78 px-4 py-3 shadow-[0_12px_40px_-34px_rgba(15,23,42,0.7)] backdrop-blur-xl sm:px-6">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
@@ -24,12 +30,20 @@ export default function NavBar({ user, onLogin, onLogout }) {
           )}
         </div>
         {user ? (
-          <button
-            onClick={onLogout}
-            className="secondary-button"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onNavigate(currentPage === 'discover' ? 'home' : 'discover')}
+              className={currentPage === 'discover' ? 'primary-button' : 'secondary-button'}
+            >
+              {currentPage === 'discover' ? 'Home' : 'Discover'}
+            </button>
+            <button
+              onClick={onLogout}
+              className="secondary-button"
+            >
+              Logout
+            </button>
+          </div>
         ) : (
           <button
             onClick={onLogin}

@@ -6,24 +6,21 @@ import ListDetail from './ListDetail';
 import CategoryManager from './CategoryManager';
 import {
   DEFAULT_ITEM_SORT_MODE,
-  DEFAULT_SHOW_PINNED_ONLY,
-  DEFAULT_SHOW_PUBLIC
+  DEFAULT_SHOW_PINNED_ONLY
 } from '../config/constants';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchCategories } from '../services/categoryService';
 import { fetchLists } from '../services/listService';
-import { getVisibleLists } from '../utils/listVisibility';
 import { compareStrings } from '../utils/sorting';
 import {
   fetchPreferences,
   updatePreferences
 } from '../services/preferenceService';
 
-export default function ListView({ user }) {
+export default function ListView({ user, viewMode = 'home' }) {
   const [lists, setLists] = useState([]);
   const [categories, setCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [showPublic, setShowPublic] = useState(DEFAULT_SHOW_PUBLIC);
   const [showPinnedOnly, setShowPinnedOnly] = useState(DEFAULT_SHOW_PINNED_ONLY);
   const [itemSortMode, setItemSortMode] = useState(DEFAULT_ITEM_SORT_MODE);
   const [pinnedListIds, setPinnedListIds] = useState([]);
@@ -85,7 +82,7 @@ export default function ListView({ user }) {
     };
   }, [categoryFilter, user]);
 
-  // Load persisted "showPublic" preference from DB
+  // Load persisted list preferences from DB
   useEffect(() => {
     let cancelled = false;
 
@@ -93,7 +90,6 @@ export default function ListView({ user }) {
       fetchPreferences()
         .then(pref => {
           if (!cancelled) {
-            setShowPublic(pref.showPublic);
             setShowPinnedOnly(pref.showPinnedOnly || DEFAULT_SHOW_PINNED_ONLY);
             setItemSortMode(pref.itemSortMode || DEFAULT_ITEM_SORT_MODE);
             setPinnedListIds(pref.pinnedListIds || []);
@@ -102,7 +98,6 @@ export default function ListView({ user }) {
         })
         .catch(() => {
           if (!cancelled) {
-            setShowPublic(DEFAULT_SHOW_PUBLIC);
             setShowPinnedOnly(DEFAULT_SHOW_PINNED_ONLY);
             setItemSortMode(DEFAULT_ITEM_SORT_MODE);
             setPinnedListIds([]);
@@ -110,7 +105,6 @@ export default function ListView({ user }) {
           }
         });
     } else {
-      setShowPublic(DEFAULT_SHOW_PUBLIC);
       setShowPinnedOnly(DEFAULT_SHOW_PINNED_ONLY);
       setItemSortMode(DEFAULT_ITEM_SORT_MODE);
       setPinnedListIds([]);
@@ -121,24 +115,6 @@ export default function ListView({ user }) {
       cancelled = true;
     };
   }, [user]);
-
-  // Persist "showPublic" toggle to DB
-  const handleShowPublicChange = e => {
-    const val = e.target.checked;
-    const prevVal = showPublic;
-    setShowPublic(val);
-    if (user) {
-      const requestId = preferenceRequestRef.current + 1;
-      preferenceRequestRef.current = requestId;
-      updatePreferences({ showPublic: val })
-        .catch(err => {
-          if (isMountedRef.current && preferenceRequestRef.current === requestId) {
-            setShowPublic(prevVal);
-          }
-          console.error(err);
-        });
-    }
-  };
 
   const persistPreferencePatch = async (nextPrefs, rollback) => {
     if (!user) {
@@ -291,9 +267,32 @@ export default function ListView({ user }) {
     setPendingNewList(null);
   };
 
-  // The API returns all lists visible to the current request. This client-side
-  // pass applies the user's personal "Show Public" preference on top of that.
-  const visible = getVisibleLists(lists, user, showPublic);
+  const getOwnerUid = list => list.owner?.uid ?? list.ownerUid;
+  const getCollaboratorUids = list => (list.collaborators || []).map(
+    collaborator => collaborator.uid || collaborator
+  );
+  const isOwned = list => user?.uid === getOwnerUid(list);
+  const isCollaborating = list => Boolean(
+    user && getCollaboratorUids(list).includes(user.uid)
+  );
+  const isPinnedList = list => pinnedListIds.includes(list._id);
+  const isLiked = list => list.currentUserReaction === 'like';
+  const isHomeList = list => (
+    isOwned(list) ||
+    isCollaborating(list) ||
+    isPinnedList(list) ||
+    isLiked(list)
+  );
+  const isDiscoverList = list => (
+    list.isPublic &&
+    !isOwned(list) &&
+    !isCollaborating(list) &&
+    !isPinnedList(list) &&
+    !isLiked(list)
+  );
+  const visible = lists.filter(list =>
+    viewMode === 'discover' ? isDiscoverList(list) : isHomeList(list)
+  );
   const visibleCategories = [...categories].sort((left, right) =>
     compareStrings(left.name, right.name)
   );
@@ -312,11 +311,7 @@ export default function ListView({ user }) {
     ...pinnedVisible.filter(list => !orderedPinnedIds.includes(list._id))
   ];
   const personalLists = nonPinnedVisible.filter(list => {
-    const ownerUid = list.owner?.uid ?? list.ownerUid;
-    const collaboratorUids = (list.collaborators || []).map(
-      collaborator => collaborator.uid || collaborator
-    );
-    return user?.uid === ownerUid || collaboratorUids.includes(user?.uid);
+    return isOwned(list) || isCollaborating(list) || isLiked(list);
   });
   const publicLists = nonPinnedVisible
     .filter(list => !personalLists.some(personalList => personalList._id === list._id))
@@ -338,12 +333,14 @@ export default function ListView({ user }) {
     <div className="mx-auto max-w-7xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="chip mb-3">Workspace</div>
+          <div className="chip mb-3">{viewMode === 'discover' ? 'Discover' : 'Workspace'}</div>
           <h1 className="text-3xl font-semibold text-slate-950 sm:text-4xl">
-            Your lists
+            {viewMode === 'discover' ? 'Discover lists' : 'Your lists'}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Personal progress, shared structure, and ranked public discoveries in one view.
+            {viewMode === 'discover'
+              ? 'Browse public lists you have not pinned, liked, owned, or joined yet.'
+              : 'Private, pinned, collaborative, owned, and liked lists collected in one place.'}
           </p>
         </div>
 
@@ -366,19 +363,7 @@ export default function ListView({ user }) {
           </button>
         )}
 
-        {user && (
-          <label className="toggle-label">
-            <input
-              type="checkbox"
-              checked={showPublic}
-              onChange={handleShowPublicChange}
-              className="h-4 w-4 rounded border-slate-300 text-slate-950"
-            />
-            Show Public
-          </label>
-        )}
-
-        {user && (
+        {user && viewMode === 'home' && (
           <label className="toggle-label">
             <input
               type="checkbox"
@@ -493,6 +478,19 @@ export default function ListView({ user }) {
           />
         ))}
       </div>
+
+      {pinnedLists.length === 0 && regularLists.length === 0 && (
+        <div className="surface rounded-[28px] p-8 text-center">
+          <h2 className="text-xl font-semibold text-slate-950">
+            {viewMode === 'discover' ? 'No new public lists right now' : 'No lists here yet'}
+          </h2>
+          <p className="mt-2 text-sm text-slate-600">
+            {viewMode === 'discover'
+              ? 'Public lists you pin, like, own, or collaborate on move out of Discover.'
+              : 'Create a list, accept an invite, pin a public list, or like one from Discover.'}
+          </p>
+        </div>
+      )}
 
       {showNewList && (
         <NewListModal
