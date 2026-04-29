@@ -16,6 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { normalizeCollaborator } from '../utils/listPermissions';
 import {
   compareStrings,
+  getUserDisplayLabel,
   sortItems,
   sortUsers,
   uniqueSortedStrings
@@ -114,11 +115,8 @@ export default function ListDetail({
   const canRemoveCollaborator = isOwner || hasEditAll;
   const canDelete = isOwner || (isAdmin && listState.isPublic);
   const canToggleItems = isOwner || isCollab;
-  const canDuplicate = Boolean(
-    user
-    && !isOwner
-    && (listState.isPublic || isCollab)
-  );
+  const canDuplicate = Boolean(user && (listState.isPublic || isOwner || isCollab));
+  const ownerLabel = getUserDisplayLabel(listState.owner) || ownerUid;
 
   const color = NOTE_COLORS[listState._id.charCodeAt(0) % NOTE_COLORS.length];
 
@@ -499,23 +497,17 @@ export default function ListDetail({
       className={`relative flex min-h-[460px] flex-col overflow-hidden rounded-[30px] border border-white/80 ${color} p-5 shadow-[0_22px_70px_-45px_rgba(15,23,42,0.7)] sm:p-6`}
     >
       {isPinned && (
-        <div className="absolute left-4 top-4 rounded-full bg-white/55 px-2 py-1 text-xs font-semibold text-slate-500" title="Drag pinned list">
-          Drag
+        <div
+          className="absolute left-4 top-4 grid h-9 w-9 grid-cols-2 place-items-center gap-0.5 rounded-full bg-white/55 p-2 text-slate-500"
+          title="Drag pinned list"
+        >
+          {Array.from({ length: 6 }).map((_, index) => (
+            <span key={index} className="h-1 w-1 rounded-full bg-current" />
+          ))}
         </div>
       )}
 
       <InlineError message={error} className="mb-4" />
-
-      {/* Delete List Button */}
-      {canDelete && !editMode && (
-        <button
-          onClick={openConfirm}
-          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-lg font-semibold text-rose-600 shadow-sm transition hover:bg-white"
-          title="Delete List"
-        >
-          ×
-        </button>
-      )}
 
       {/* Delete Confirmation Modal */}
       {showConfirm && (
@@ -532,6 +524,7 @@ export default function ListDetail({
         canEdit={canEnterEditMode}
         categoryName={listState.categoryId?.name}
         editMode={editMode}
+        ownerLabel={ownerLabel}
         onCancelEdit={cancelEdit}
         onEnterEditMode={enterEditMode}
         onSaveEdit={saveEdit}
@@ -625,7 +618,7 @@ export default function ListDetail({
 
       <div className="mt-auto flex items-end justify-between gap-3 pt-4">
         <div className="flex items-center gap-2">
-          {user && (
+          {user && !editMode && (
             <button
               onClick={onTogglePin}
               aria-label={isPinned ? 'Unpin list' : 'Pin list'}
@@ -647,24 +640,35 @@ export default function ListDetail({
             </button>
           )}
         </div>
-        <div className="ml-auto flex items-center gap-2 text-xs sm:text-sm">
-          <button
-            onClick={() => handleReactionChange('like')}
-            disabled={!user}
-            aria-label="Thumbs up"
-            className={`rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${listState.currentUserReaction === 'like' ? 'border-emerald-500 bg-emerald-100 text-emerald-800' : 'border-white bg-white/75 text-slate-700'}`}
-          >
-            Up {listState.likesCount || 0}
-          </button>
-          <button
-            onClick={() => handleReactionChange('dislike')}
-            disabled={!user}
-            aria-label="Thumbs down"
-            className={`rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${listState.currentUserReaction === 'dislike' ? 'border-rose-500 bg-rose-100 text-rose-800' : 'border-white bg-white/75 text-slate-700'}`}
-          >
-            Down {listState.dislikesCount || 0}
-          </button>
-        </div>
+        {editMode ? (
+          canDelete && (
+            <button
+              onClick={openConfirm}
+              className="danger-button ml-auto px-4 py-2 text-xs"
+            >
+              Delete
+            </button>
+          )
+        ) : (
+          <div className="ml-auto flex items-center gap-2 text-xs sm:text-sm">
+            <button
+              onClick={() => handleReactionChange('like')}
+              disabled={!user}
+              aria-label="Thumbs up"
+              className={`rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${listState.currentUserReaction === 'like' ? 'border-emerald-500 bg-emerald-100 text-emerald-800' : 'border-white bg-white/75 text-slate-700'}`}
+            >
+              Up {listState.likesCount || 0}
+            </button>
+            <button
+              onClick={() => handleReactionChange('dislike')}
+              disabled={!user}
+              aria-label="Thumbs down"
+              className={`rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${listState.currentUserReaction === 'dislike' ? 'border-rose-500 bg-rose-100 text-rose-800' : 'border-white bg-white/75 text-slate-700'}`}
+            >
+              Down {listState.dislikesCount || 0}
+            </button>
+          </div>
+        )}
       </div>
     </motion.div>
   );

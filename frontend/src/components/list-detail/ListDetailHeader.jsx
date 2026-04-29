@@ -4,6 +4,7 @@ export default function ListDetailHeader({
   canEdit,
   categoryName,
   editMode,
+  ownerLabel,
   onCancelEdit,
   onEnterEditMode,
   onSaveEdit,
@@ -20,6 +21,11 @@ export default function ListDetailHeader({
         <div className="mt-2 inline-flex rounded-full bg-white/55 px-3 py-1 text-xs font-semibold text-slate-600">
           {categoryName}
         </div>
+        {ownerLabel && (
+          <div className="mt-2 text-xs font-semibold text-slate-600">
+            Created By: {ownerLabel}
+          </div>
+        )}
         {source && (
           <div className="mt-2 text-xs leading-5 text-slate-500">
             Based on <span className="font-medium">{source.title}</span>
