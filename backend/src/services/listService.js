@@ -2,6 +2,7 @@ const admin = require('firebase-admin');
 const Category = require('../models/Category');
 const Item = require('../models/Item');
 const List = require('../models/List');
+const ListInvitation = require('../models/ListInvitation');
 const ListReaction = require('../models/ListReaction');
 const {
   COLLABORATOR_PERMISSIONS,
@@ -66,6 +67,33 @@ async function enrichLists(docs) {
     return map;
   }, {});
 
+  const listIds = docs.map(list => String(list._id));
+  let pendingInvitationsByList = {};
+  if (listIds.length) {
+    const invitations = await ListInvitation.find({
+      listId: { $in: listIds },
+      status: 'pending',
+      expiresAt: { $gt: new Date() }
+    })
+      .select('listId email permissions expiresAt createdAt')
+      .lean();
+
+    pendingInvitationsByList = invitations.reduce((map, invitation) => {
+      const key = String(invitation.listId);
+      if (!map[key]) {
+        map[key] = [];
+      }
+      map[key].push({
+        _id: invitation._id,
+        email: invitation.email,
+        permissions: invitation.permissions,
+        expiresAt: invitation.expiresAt,
+        createdAt: invitation.createdAt
+      });
+      return map;
+    }, {});
+  }
+
   return docs.map(list => ({
     ...list,
     owner: {
@@ -95,7 +123,8 @@ async function enrichLists(docs) {
         email: userMap[uid]?.email || null,
         displayName: userMap[uid]?.displayName || null
       };
-    })
+    }),
+    pendingInvitations: pendingInvitationsByList[String(list._id)] || []
   }));
 }
 

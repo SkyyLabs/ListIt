@@ -21,7 +21,7 @@ import {
   uniqueSortedStrings
 } from '../utils/sorting';
 import {
-  addCollaborator,
+  createCollaboratorInvitation,
   duplicateList,
   removeCollaborator,
   removeList,
@@ -111,7 +111,7 @@ export default function ListDetail({
   const canEditItemMetadata = isOwner || hasEditAll;
   const canInvite = isOwner || hasEditAll;
   const canManagePermissions = isOwner || hasEditAll;
-  const canRemoveCollaborator = isOwner;
+  const canRemoveCollaborator = isOwner || hasEditAll;
   const canDelete = isOwner || (isAdmin && listState.isPublic);
   const canToggleItems = isOwner || isCollab;
   const canDuplicate = Boolean(
@@ -180,16 +180,29 @@ export default function ListDetail({
       return;
     }
     try {
-      const updatedList = await addCollaborator(listState._id, {
+      const invitation = await createCollaboratorInvitation(listState._id, {
         email: inviteEmail.trim(),
         permissions: invitePermissions
       });
       if (!isMountedRef.current) return;
       setListState(s => ({
         ...s,
-        collaborators: updatedList.collaborators || s.collaborators
+        pendingInvitations: [
+          invitation,
+          ...(s.pendingInvitations || []).filter(
+            existingInvitation => existingInvitation.email !== invitation.email
+          )
+        ]
       }));
-      onListUpdate?.(updatedList);
+      onListUpdate?.({
+        ...listState,
+        pendingInvitations: [
+          invitation,
+          ...(listState.pendingInvitations || []).filter(
+            existingInvitation => existingInvitation.email !== invitation.email
+          )
+        ]
+      });
       setInviteEmail('');
       setInvitePermissions([COLLABORATOR_PERMISSIONS.READ]);
       setError('');
@@ -481,14 +494,13 @@ export default function ListDetail({
       onDragOver={onDragOver}
       onDragStart={onDragStart}
       onDrop={onDrop}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      className={`relative flex min-h-[420px] flex-col rounded-lg shadow-xl ${color} p-4 sm:p-6 md:p-8`}
-      style={{ minHeight: '200px' }}
+      whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.99 }}
+      className={`relative flex min-h-[460px] flex-col overflow-hidden rounded-[30px] border border-white/80 ${color} p-5 shadow-[0_22px_70px_-45px_rgba(15,23,42,0.7)] sm:p-6`}
     >
       {isPinned && (
-        <div className="absolute top-2 left-2 text-gray-500 text-lg" title="Drag pinned list">
-          ::
+        <div className="absolute left-4 top-4 rounded-full bg-white/55 px-2 py-1 text-xs font-semibold text-slate-500" title="Drag pinned list">
+          Drag
         </div>
       )}
 
@@ -498,7 +510,7 @@ export default function ListDetail({
       {canDelete && !editMode && (
         <button
           onClick={openConfirm}
-          className="absolute top-2 right-2 text-red-600 text-lg sm:text-xl md:text-2xl p-1 sm:p-2"
+          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-lg font-semibold text-rose-600 shadow-sm transition hover:bg-white"
           title="Delete List"
         >
           ×
@@ -559,19 +571,19 @@ export default function ListDetail({
         {canManageItems && editMode && (
           <button
             onClick={() => setShowNewItem(true)}
-            className="mb-4 w-full rounded-md bg-indigo-600 py-1 text-xs text-white transition hover:bg-indigo-700 sm:py-2 sm:text-sm"
+            className="primary-button mb-4 w-full"
           >
             + Add Item
           </button>
         )}
 
         {isOwner && editMode && (
-          <label className="mb-4 inline-flex items-center text-xs sm:text-sm">
+          <label className="toggle-label mb-4">
             <input
               type="checkbox"
               checked={listState.isPublic}
               onChange={handlePublicToggle}
-              className="mr-2"
+              className="h-4 w-4 rounded border-slate-300"
             />
             Public
           </label>
@@ -592,10 +604,11 @@ export default function ListDetail({
         <div className="mb-4">
           <CollaboratorPanel
             collaborators={collaborators}
+            pendingInvitations={listState.pendingInvitations || []}
             canInvite={canInvite}
             canManagePermissions={canManagePermissions}
             canRemoveCollaborator={canRemoveCollaborator}
-            disabled={!editMode}
+            disabled={false}
             inviteEmail={inviteEmail}
             invitePermissions={invitePermissions}
             onInvite={handleInvite}
@@ -616,19 +629,19 @@ export default function ListDetail({
             <button
               onClick={onTogglePin}
               aria-label={isPinned ? 'Unpin list' : 'Pin list'}
-              className={`rounded-full border px-3 py-2 text-base leading-none shadow-sm ${
+              className={`rounded-full border px-3 py-2 text-xs font-semibold leading-none shadow-sm transition hover:-translate-y-0.5 ${
                 isPinned
-                  ? 'border-red-500 bg-red-100 text-red-600'
-                  : 'border-gray-300 bg-white text-red-500'
+                  ? 'border-slate-950 bg-slate-950 text-white'
+                  : 'border-white bg-white/75 text-slate-700'
               }`}
             >
-              {isPinned ? '📌' : '📍'}
+              {isPinned ? 'Pinned' : 'Pin'}
             </button>
           )}
           {canDuplicate && (
             <button
               onClick={handleDuplicate}
-              className="rounded border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm sm:text-sm"
+              className="rounded-full border border-white bg-white/75 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
             >
               Duplicate
             </button>
@@ -639,17 +652,17 @@ export default function ListDetail({
             onClick={() => handleReactionChange('like')}
             disabled={!user}
             aria-label="Thumbs up"
-            className={`rounded border px-2 py-1 shadow-sm ${listState.currentUserReaction === 'like' ? 'border-green-500 bg-green-200' : 'bg-white'}`}
+            className={`rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${listState.currentUserReaction === 'like' ? 'border-emerald-500 bg-emerald-100 text-emerald-800' : 'border-white bg-white/75 text-slate-700'}`}
           >
-            👍 {listState.likesCount || 0}
+            Up {listState.likesCount || 0}
           </button>
           <button
             onClick={() => handleReactionChange('dislike')}
             disabled={!user}
             aria-label="Thumbs down"
-            className={`rounded border px-2 py-1 shadow-sm ${listState.currentUserReaction === 'dislike' ? 'border-red-500 bg-red-200' : 'bg-white'}`}
+            className={`rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${listState.currentUserReaction === 'dislike' ? 'border-rose-500 bg-rose-100 text-rose-800' : 'border-white bg-white/75 text-slate-700'}`}
           >
-            👎 {listState.dislikesCount || 0}
+            Down {listState.dislikesCount || 0}
           </button>
         </div>
       </div>

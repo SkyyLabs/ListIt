@@ -1,33 +1,32 @@
 // frontend/src/components/ListView.js
 import React, { useState, useEffect, useRef } from 'react';
 import NewListModal from './NewListModal';
+import NewListItemsModal from './NewListItemsModal';
 import ListDetail from './ListDetail';
 import CategoryManager from './CategoryManager';
 import {
   DEFAULT_ITEM_SORT_MODE,
-  DEFAULT_SHOW_PINNED_ONLY,
-  DEFAULT_SHOW_PUBLIC
+  DEFAULT_SHOW_PINNED_ONLY
 } from '../config/constants';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchCategories } from '../services/categoryService';
 import { fetchLists } from '../services/listService';
-import { getVisibleLists } from '../utils/listVisibility';
 import { compareStrings } from '../utils/sorting';
 import {
   fetchPreferences,
   updatePreferences
 } from '../services/preferenceService';
 
-export default function ListView({ user }) {
+export default function ListView({ user, viewMode = 'home' }) {
   const [lists, setLists] = useState([]);
   const [categories, setCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [showPublic, setShowPublic] = useState(DEFAULT_SHOW_PUBLIC);
   const [showPinnedOnly, setShowPinnedOnly] = useState(DEFAULT_SHOW_PINNED_ONLY);
   const [itemSortMode, setItemSortMode] = useState(DEFAULT_ITEM_SORT_MODE);
   const [pinnedListIds, setPinnedListIds] = useState([]);
   const [pinnedListOrder, setPinnedListOrder] = useState([]);
   const [showNewList, setShowNewList] = useState(false);
+  const [pendingNewList, setPendingNewList] = useState(null);
   const [showCatManager, setShowCatManager] = useState(false);
   const [draggedPinnedId, setDraggedPinnedId] = useState(null);
   const isMountedRef = useRef(true);
@@ -83,7 +82,7 @@ export default function ListView({ user }) {
     };
   }, [categoryFilter, user]);
 
-  // Load persisted "showPublic" preference from DB
+  // Load persisted list preferences from DB
   useEffect(() => {
     let cancelled = false;
 
@@ -91,7 +90,6 @@ export default function ListView({ user }) {
       fetchPreferences()
         .then(pref => {
           if (!cancelled) {
-            setShowPublic(pref.showPublic);
             setShowPinnedOnly(pref.showPinnedOnly || DEFAULT_SHOW_PINNED_ONLY);
             setItemSortMode(pref.itemSortMode || DEFAULT_ITEM_SORT_MODE);
             setPinnedListIds(pref.pinnedListIds || []);
@@ -100,7 +98,6 @@ export default function ListView({ user }) {
         })
         .catch(() => {
           if (!cancelled) {
-            setShowPublic(DEFAULT_SHOW_PUBLIC);
             setShowPinnedOnly(DEFAULT_SHOW_PINNED_ONLY);
             setItemSortMode(DEFAULT_ITEM_SORT_MODE);
             setPinnedListIds([]);
@@ -108,7 +105,6 @@ export default function ListView({ user }) {
           }
         });
     } else {
-      setShowPublic(DEFAULT_SHOW_PUBLIC);
       setShowPinnedOnly(DEFAULT_SHOW_PINNED_ONLY);
       setItemSortMode(DEFAULT_ITEM_SORT_MODE);
       setPinnedListIds([]);
@@ -119,24 +115,6 @@ export default function ListView({ user }) {
       cancelled = true;
     };
   }, [user]);
-
-  // Persist "showPublic" toggle to DB
-  const handleShowPublicChange = e => {
-    const val = e.target.checked;
-    const prevVal = showPublic;
-    setShowPublic(val);
-    if (user) {
-      const requestId = preferenceRequestRef.current + 1;
-      preferenceRequestRef.current = requestId;
-      updatePreferences({ showPublic: val })
-        .catch(err => {
-          if (isMountedRef.current && preferenceRequestRef.current === requestId) {
-            setShowPublic(prevVal);
-          }
-          console.error(err);
-        });
-    }
-  };
 
   const persistPreferencePatch = async (nextPrefs, rollback) => {
     if (!user) {
@@ -246,9 +224,77 @@ export default function ListView({ user }) {
     setShowNewList(false);
   };
 
-  // The API returns all lists visible to the current request. This client-side
-  // pass applies the user's personal "Show Public" preference on top of that.
-  const visible = getVisibleLists(lists, user, showPublic);
+  const getListCategoryId = list => {
+    if (!list?.categoryId) {
+      return '';
+    }
+    return typeof list.categoryId === 'string'
+      ? list.categoryId
+      : list.categoryId._id;
+  };
+
+  const prepareCreatedList = (list, { categoryName } = {}) => {
+    const categoryId = getListCategoryId(list);
+    const matchedCategory = categories.find(category =>
+      category._id === categoryId
+      || category.name.toLowerCase() === (categoryName || '').toLowerCase()
+    );
+    const category = matchedCategory || {
+      _id: categoryId,
+      name: categoryName,
+      subCategories: []
+    };
+
+    if (!matchedCategory && category._id && category.name) {
+      setCategories(currentCategories => [...currentCategories, category]);
+    }
+
+    return {
+      ...list,
+      categoryId: category
+    };
+  };
+
+  const handleNewListCreated = (list, metadata) => {
+    setPendingNewList(prepareCreatedList(list, metadata));
+    setShowNewList(false);
+  };
+
+  const finishNewListItems = () => {
+    if (pendingNewList) {
+      setLists(prev => [pendingNewList, ...prev]);
+    }
+    setPendingNewList(null);
+  };
+
+  const getOwnerUid = list => list.owner?.uid ?? list.ownerUid;
+  const getCollaboratorUids = list => (list.collaborators || []).map(
+    collaborator => collaborator.uid || collaborator
+  );
+  const isOwned = list => user?.uid === getOwnerUid(list);
+  const isCollaborating = list => Boolean(
+    user && getCollaboratorUids(list).includes(user.uid)
+  );
+  const isPinnedList = list => pinnedListIds.includes(list._id);
+  const isLiked = list => list.currentUserReaction === 'like';
+  const isHomeList = list => (
+    isOwned(list) ||
+    isCollaborating(list) ||
+    isPinnedList(list) ||
+    isLiked(list)
+  );
+  const isDiscoverList = list => (
+    list.isPublic &&
+    (!user || (
+      !isOwned(list) &&
+      !isCollaborating(list) &&
+      !isPinnedList(list) &&
+      !isLiked(list)
+    ))
+  );
+  const visible = lists.filter(list =>
+    viewMode === 'discover' ? isDiscoverList(list) : isHomeList(list)
+  );
   const visibleCategories = [...categories].sort((left, right) =>
     compareStrings(left.name, right.name)
   );
@@ -267,11 +313,7 @@ export default function ListView({ user }) {
     ...pinnedVisible.filter(list => !orderedPinnedIds.includes(list._id))
   ];
   const personalLists = nonPinnedVisible.filter(list => {
-    const ownerUid = list.owner?.uid ?? list.ownerUid;
-    const collaboratorUids = (list.collaborators || []).map(
-      collaborator => collaborator.uid || collaborator
-    );
-    return user?.uid === ownerUid || collaboratorUids.includes(user?.uid);
+    return isOwned(list) || isCollaborating(list) || isLiked(list);
   });
   const publicLists = nonPinnedVisible
     .filter(list => !personalLists.some(personalList => personalList._id === list._id))
@@ -290,56 +332,59 @@ export default function ListView({ user }) {
   const regularLists = [...personalLists, ...publicLists];
 
   return (
-    <>
-      <div className="flex flex-wrap items-center gap-4 mb-6">
-        {user && (
+    <div className="mx-auto max-w-7xl">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <div className="chip mb-3">{viewMode === 'discover' ? 'Discover' : 'Workspace'}</div>
+          <h1 className="text-3xl font-semibold text-slate-950 sm:text-4xl">
+            {viewMode === 'discover' ? 'Discover lists' : 'Your lists'}
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            {viewMode === 'discover'
+              ? user
+                ? 'Browse public lists you have not pinned, liked, owned, or joined yet.'
+                : 'Browse public lists from the ListIt community.'
+              : 'Private, pinned, collaborative, owned, and liked lists collected in one place.'}
+          </p>
+        </div>
+
+        <div className="control-bar flex flex-wrap items-center gap-3">
+        {user && viewMode === 'home' && (
           <button
             onClick={() => setShowNewList(true)}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition"
+            className="primary-button"
           >
             + New List
           </button>
         )}
 
-        {isAdmin && (
+        {isAdmin && viewMode === 'home' && (
           <button
             onClick={() => setShowCatManager(v => !v)}
-            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition"
+            className="secondary-button"
           >
             {showCatManager ? 'Hide Categories' : 'Manage Categories'}
           </button>
         )}
 
-        {user && (
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={showPublic}
-              onChange={handleShowPublicChange}
-              className="h-4 w-4"
-            />
-            Show Public
-          </label>
-        )}
-
-        {user && (
-          <label className="flex items-center gap-2 text-sm">
+        {user && viewMode === 'home' && (
+          <label className="toggle-label">
             <input
               type="checkbox"
               checked={showPinnedOnly}
               onChange={handleShowPinnedOnlyChange}
-              className="h-4 w-4"
+              className="h-4 w-4 rounded border-slate-300 text-slate-950"
             />
             Pinned Only
           </label>
         )}
 
-        <label className="flex items-center gap-2 text-sm">
-          Category:
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+          Category
           <select
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
-            className="ml-1 border px-2 py-1 rounded-md text-sm"
+            className="select-field"
           >
             <option value="">All</option>
             {visibleCategories.map(c => (
@@ -349,6 +394,7 @@ export default function ListView({ user }) {
             ))}
           </select>
         </label>
+        </div>
       </div>
 
       {isAdmin && showCatManager && (
@@ -361,13 +407,13 @@ export default function ListView({ user }) {
 
       {pinnedLists.length > 0 && (
         <section className="mb-8">
-          <div className="mb-3 flex items-center gap-3">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-600">
+          <div className="mb-4 flex items-center gap-3">
+            <h2 className="text-xs font-semibold uppercase text-slate-500">
               Pinned Lists
             </h2>
-            <div className="h-px flex-1 bg-gray-300" />
+            <div className="h-px flex-1 bg-slate-300/70" />
           </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {pinnedLists.map(list => (
               <ListDetail
                 key={list._id}
@@ -402,10 +448,10 @@ export default function ListView({ user }) {
       )}
 
       {pinnedLists.length > 0 && regularLists.length > 0 && (
-        <div className="mb-8 h-px w-full bg-gray-300" />
+        <div className="mb-8 h-px w-full bg-slate-300/70" />
       )}
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {regularLists.map(list => (
           <ListDetail
             key={list._id}
@@ -437,13 +483,36 @@ export default function ListView({ user }) {
         ))}
       </div>
 
+      {pinnedLists.length === 0 && regularLists.length === 0 && (
+        <div className="surface rounded-[28px] p-8 text-center">
+          <h2 className="text-xl font-semibold text-slate-950">
+            {viewMode === 'discover' ? 'No new public lists right now' : 'No lists here yet'}
+          </h2>
+          <p className="mt-2 text-sm text-slate-600">
+            {viewMode === 'discover'
+              ? user
+                ? 'Public lists you pin, like, own, or collaborate on move out of Discover.'
+                : 'Public lists will appear here as the community creates them.'
+              : 'Create a list, accept an invite, pin a public list, or like one from Discover.'}
+          </p>
+        </div>
+      )}
+
       {showNewList && (
         <NewListModal
           categories={visibleCategories}
-          onCreated={list => setLists(prev => [list, ...prev])}
+          onCreated={handleNewListCreated}
           onClose={() => setShowNewList(false)}
         />
       )}
-    </>
+
+      {pendingNewList && (
+        <NewListItemsModal
+          list={pendingNewList}
+          subCategories={pendingNewList.categoryId?.subCategories || []}
+          onFinish={finishNewListItems}
+        />
+      )}
+    </div>
   );
 }

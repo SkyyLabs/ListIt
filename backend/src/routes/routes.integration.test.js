@@ -6,6 +6,7 @@ const { PassThrough, Readable, Writable } = require('node:stream');
 const Category = require('../models/Category');
 const Item = require('../models/Item');
 const List = require('../models/List');
+const ListInvitation = require('../models/ListInvitation');
 const ListReaction = require('../models/ListReaction');
 const { errorHandler } = require('../middlewares/errorHandler');
 
@@ -21,6 +22,7 @@ let originalItemFindById;
 let originalListFindById;
 let originalItemCountDocuments;
 let originalListFind;
+let originalListInvitationFind;
 let originalListReactionFind;
 let originalListReactionFindOneAndUpdate;
 let originalListReactionDeleteOne;
@@ -161,6 +163,7 @@ test.before(() => {
   originalItemFindById = Item.findById;
   originalListFindById = List.findById;
   originalListFind = List.find;
+  originalListInvitationFind = ListInvitation.find;
   originalItemCountDocuments = Item.countDocuments;
   originalListReactionFind = ListReaction.find;
   originalListReactionFindOneAndUpdate = ListReaction.findOneAndUpdate;
@@ -175,6 +178,7 @@ test.after(() => {
   Item.findById = originalItemFindById;
   List.findById = originalListFindById;
   List.find = originalListFind;
+  ListInvitation.find = originalListInvitationFind;
   Item.countDocuments = originalItemCountDocuments;
   ListReaction.find = originalListReactionFind;
   ListReaction.findOneAndUpdate = originalListReactionFindOneAndUpdate;
@@ -237,6 +241,12 @@ test.beforeEach(() => {
     lean: async () => []
   });
   ListReaction.find = () => ({
+    lean: async () => []
+  });
+  ListInvitation.find = () => ({
+    select() {
+      return this;
+    },
     lean: async () => []
   });
   ListReaction.findOneAndUpdate = async () => ({});
@@ -316,6 +326,103 @@ test('DELETE /lists/:id blocks an owner when foreign items exist', async () => {
 
   assert.equal(status, 403);
   assert.equal(text, 'Forbidden');
+});
+
+test('DELETE /lists/:id/collaborators/:collabUid allows an EDIT_ALL collaborator to remove another collaborator', async () => {
+  let savedCollaborators;
+  List.findById = async () => ({
+    _id: 'list-1',
+    ownerUid: 'owner-1',
+    collaborators: [
+      { uid: 'collab-1', permissions: ['READ', 'EDIT_ALL'] },
+      { uid: 'stranger-1', permissions: ['READ'] }
+    ],
+    save: async function save() {
+      savedCollaborators = this.collaborators;
+      return this;
+    }
+  });
+
+  const { status, text } = await request('/lists/list-1/collaborators/stranger-1', {
+    method: 'DELETE',
+    headers: {
+      authorization: 'Bearer collabToken'
+    }
+  });
+
+  assert.equal(status, 200);
+  assert.deepEqual(savedCollaborators.map(collaborator => collaborator.uid), ['collab-1']);
+  assert.deepEqual(JSON.parse(text).collaborators.map(collaborator => collaborator.uid), ['collab-1']);
+});
+
+test('DELETE /lists/:id/collaborators/:collabUid rejects a READ collaborator', async () => {
+  List.findById = async () => ({
+    _id: 'list-1',
+    ownerUid: 'owner-1',
+    collaborators: [
+      { uid: 'collab-1', permissions: ['READ'] },
+      { uid: 'stranger-1', permissions: ['READ'] }
+    ],
+    save: async function save() {
+      return this;
+    }
+  });
+
+  const { status, text } = await request('/lists/list-1/collaborators/stranger-1', {
+    method: 'DELETE',
+    headers: {
+      authorization: 'Bearer collabToken'
+    }
+  });
+
+  assert.equal(status, 403);
+  assert.equal(text, 'Forbidden');
+});
+
+test('DELETE /lists/:id/collaborators/:collabUid never removes the owner', async () => {
+  List.findById = async () => ({
+    _id: 'list-1',
+    ownerUid: 'owner-1',
+    collaborators: [
+      { uid: 'collab-1', permissions: ['READ', 'EDIT_ALL'] }
+    ],
+    save: async function save() {
+      return this;
+    }
+  });
+
+  const { status, text } = await request('/lists/list-1/collaborators/owner-1', {
+    method: 'DELETE',
+    headers: {
+      authorization: 'Bearer ownerToken'
+    }
+  });
+
+  assert.equal(status, 400);
+  assert.equal(text, 'Owner cannot be removed as a collaborator');
+});
+
+test('POST /lists/:id/collaborators does not add the owner as a collaborator', async () => {
+  List.findById = async () => ({
+    _id: 'list-1',
+    ownerUid: 'owner-1',
+    collaborators: [],
+    save: async function save() {
+      return this;
+    }
+  });
+
+  const { status, text } = await request('/lists/list-1/collaborators', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer ownerToken',
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({ uid: 'owner-1' })
+  });
+
+  assert.equal(status, 400);
+  assert.equal(text, 'Owner cannot be added as a collaborator');
 });
 
 test('PUT /lists/:id/reaction supports legacy string collaborators without saving the list', async () => {

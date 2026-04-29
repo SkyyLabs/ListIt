@@ -8,32 +8,32 @@ export default function DeleteListModal({
 }) {
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      className="modal-backdrop"
       onClick={onCancel}
     >
       <div
-        className="bg-white rounded-lg p-4 sm:p-6 md:p-8 w-64 sm:w-72 md:w-96"
+        className="modal-panel max-w-sm"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="text-base sm:text-lg md:text-xl font-semibold mb-4">
+        <h2 className="mb-3 text-xl font-semibold text-slate-950">
           Delete list?
         </h2>
         {deleteError && (
-          <p className="text-xs sm:text-sm text-red-500 mb-2">
+          <p className="mb-3 rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-700">
             {deleteError}
           </p>
         )}
-        <div className="flex justify-end space-x-2 sm:space-x-3">
+        <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-2 py-1 sm:px-3 sm:py-2 bg-gray-200 rounded hover:bg-gray-300 text-xs sm:text-sm"
+            className="secondary-button"
             disabled={deleting}
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="px-2 py-1 sm:px-3 sm:py-2 bg-red-600 text-white rounded hover:bg-red-700 text-xs sm:text-sm"
+            className="danger-button"
           >
             {deleting ? 'Deleting…' : 'Delete'}
           </button>

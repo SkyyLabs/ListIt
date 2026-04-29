@@ -66,23 +66,23 @@ export default function Filters({
   ];
 
   return (
-    <div className="mb-4 flex gap-3">
+    <div className="mb-4 flex gap-2">
       <div className="relative" ref={sortRef}>
         <button
           onClick={() => setSortOpen(open => !open)}
-          className="rounded bg-gray-200 px-3 py-1 text-sm"
+          className="secondary-button px-3 py-2 text-xs"
         >
           Sort
         </button>
         {sortOpen && (
-          <div className="absolute left-0 top-full z-20 mt-2 w-40 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
+          <div className="absolute left-0 top-full z-20 mt-2 w-44 rounded-2xl border border-white/80 bg-white/95 p-2 shadow-2xl backdrop-blur">
             <button
               onClick={() => {
                 onSortModeChange?.('subcategory');
                 setSortOpen(false);
               }}
-              className={`block w-full rounded px-2 py-2 text-left text-sm ${
-                sortMode === 'subcategory' ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+              className={`block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold ${
+                sortMode === 'subcategory' ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               Subcategory
@@ -92,8 +92,8 @@ export default function Filters({
                 onSortModeChange?.('name');
                 setSortOpen(false);
               }}
-              className={`mt-1 block w-full rounded px-2 py-2 text-left text-sm ${
-                sortMode === 'name' ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+              className={`mt-1 block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold ${
+                sortMode === 'name' ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               Name
@@ -105,25 +105,25 @@ export default function Filters({
       <div className="relative" ref={filtersRef}>
         <button
           onClick={() => setFiltersOpen(open => !open)}
-          className="rounded bg-gray-200 px-3 py-1 text-sm"
+          className="secondary-button px-3 py-2 text-xs"
         >
           Filters
         </button>
         {filtersOpen && (
-          <div className="absolute left-0 top-full z-20 mt-2 flex rounded-xl border border-gray-200 bg-white shadow-xl">
-            <div className="min-w-[170px] border-r border-gray-200 p-2">
+          <div className="absolute left-0 top-full z-20 mt-2 flex rounded-2xl border border-white/80 bg-white/95 shadow-2xl backdrop-blur">
+            <div className="min-w-[170px] border-r border-slate-200 p-2">
               {filterGroups.map(group => (
                 <button
                   key={group.key}
                   onMouseEnter={() => setActivePane(group.key)}
                   onFocus={() => setActivePane(group.key)}
-                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${
-                    activePane === group.key ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold ${
+                    activePane === group.key ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
                   <span>{group.label}</span>
                   {group.active && (
-                    <span className={`text-xs ${activePane === group.key ? 'text-gray-200' : 'text-gray-500'}`}>
+                    <span className={`text-xs ${activePane === group.key ? 'text-slate-200' : 'text-slate-400'}`}>
                       Active
                     </span>
                   )}
@@ -136,20 +136,20 @@ export default function Filters({
                 <>
                   <button
                     onClick={() => clearField('subCategory')}
-                    className="mb-2 text-xs text-blue-500"
+                    className="mb-2 text-xs font-semibold text-slate-500"
                   >
                     All Subcategories
                   </button>
                   {subCategories.map(subCategory => (
                     <label
                       key={subCategory}
-                      className="mb-1 flex items-center rounded px-1 py-1 text-sm hover:bg-gray-50"
+                      className="mb-1 flex items-center rounded-xl px-2 py-1 text-sm text-slate-700 hover:bg-slate-100"
                     >
                       <input
                         type="checkbox"
                         checked={filters.subCategory.includes(subCategory)}
                         onChange={() => toggleItem('subCategory', subCategory)}
-                        className="mr-2"
+                        className="mr-2 h-4 w-4 rounded border-slate-300"
                       />
                       {subCategory}
                     </label>
@@ -161,20 +161,20 @@ export default function Filters({
                 <>
                   <button
                     onClick={() => clearField('addedBy')}
-                    className="mb-2 text-xs text-blue-500"
+                    className="mb-2 text-xs font-semibold text-slate-500"
                   >
                     All Users
                   </button>
                   {sortedCollaborators.map(collaborator => (
                     <label
                       key={collaborator.uid}
-                      className="mb-1 flex items-center rounded px-1 py-1 text-sm hover:bg-gray-50"
+                      className="mb-1 flex items-center rounded-xl px-2 py-1 text-sm text-slate-700 hover:bg-slate-100"
                     >
                       <input
                         type="checkbox"
                         checked={filters.addedBy.includes(collaborator.uid)}
                         onChange={() => toggleItem('addedBy', collaborator.uid)}
-                        className="mr-2"
+                        className="mr-2 h-4 w-4 rounded border-slate-300"
                       />
                       {collaborator.displayName || collaborator.uid}
                     </label>
@@ -186,24 +186,24 @@ export default function Filters({
                 <>
                   <button
                     onClick={() => setStatus('all')}
-                    className={`block w-full rounded px-2 py-2 text-left text-sm ${
-                      filters.done === undefined ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+                    className={`block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold ${
+                      filters.done === undefined ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     All
                   </button>
                   <button
                     onClick={() => setStatus('done')}
-                    className={`mt-1 block w-full rounded px-2 py-2 text-left text-sm ${
-                      filters.done === true ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+                    className={`mt-1 block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold ${
+                      filters.done === true ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     Done
                   </button>
                   <button
                     onClick={() => setStatus('notdone')}
-                    className={`mt-1 block w-full rounded px-2 py-2 text-left text-sm ${
-                      filters.done === false ? 'bg-gray-900 text-white' : 'hover:bg-gray-100'
+                    className={`mt-1 block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold ${
+                      filters.done === false ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     Not Done

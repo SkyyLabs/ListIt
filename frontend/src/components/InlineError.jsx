@@ -7,7 +7,7 @@ export default function InlineError({ message, className = '' }) {
 
   return (
     <p
-      className={`rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 ${className}`.trim()}
+      className={`rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 ${className}`.trim()}
       role="alert"
     >
       {message}

@@ -1,12 +1,15 @@
 // backend/src/routes/lists.js
+const crypto = require('node:crypto');
 const express = require('express');
 const router  = express.Router();
 const List    = require('../models/List');
 const Item    = require('../models/Item');
+const ListInvitation = require('../models/ListInvitation');
 const ListReaction = require('../models/ListReaction');
 const { authenticate, optionalAuth } = require('../middlewares/auth');
 const { asyncHandler, createHttpError } = require('../utils/http');
 const { hasAdminRole } = require('../utils/roles');
+const { COLLABORATOR_PERMISSIONS } = require('../config/constants');
 const {
   assertListOwner,
   buildVisibleListFilter,
@@ -19,6 +22,10 @@ const {
   resolveCollaboratorUid
 } = require('../services/listService');
 const {
+  buildInviteUrl,
+  sendInvitationEmail
+} = require('../services/emailService');
+const {
   getTrimmedString,
   optionalTrimmedString,
   requireTrimmedString
@@ -28,8 +35,19 @@ const {
   canInviteCollaborators,
   canRemoveCollaborator,
   canUpdateCollaboratorPermissions,
-  normalizeCollaborators
+  normalizeCollaborators,
+  sanitizePermissions
 } = require('../utils/listPermissions');
+
+const INVITATION_TTL_DAYS = 7;
+
+function normalizeEmail(email) {
+  return typeof email === 'string' ? email.trim().toLowerCase() : '';
+}
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 /**
  * GET /lists
@@ -132,7 +150,7 @@ router.delete('/:id', asyncHandler(async (req, res) => {
 
 /**
  * POST /lists/:id/collaborators
- * Invite collaborator by email or UID (OWNER ONLY)
+ * Invite collaborator by email or UID.
  */
 router.post('/:id/collaborators', asyncHandler(async (req, res) => {
   const list = await List.findById(req.params.id);
@@ -151,6 +169,10 @@ router.post('/:id/collaborators', asyncHandler(async (req, res) => {
     email,
     getTrimmedString(req.body.uid)
   );
+  if (collabUid === list.ownerUid) {
+    throw createHttpError(400, 'Owner cannot be added as a collaborator');
+  }
+
   const permissions = Array.isArray(req.body.permissions)
     ? req.body.permissions
     : undefined;
@@ -168,6 +190,64 @@ router.post('/:id/collaborators', asyncHandler(async (req, res) => {
     await list.save();
   }
   return res.json(list);
+}));
+
+router.post('/:id/invitations', asyncHandler(async (req, res) => {
+  const list = await List.findById(req.params.id);
+  if (!list) throw createHttpError(404, 'List not found');
+
+  await ensureStructuredCollaborators(list);
+  if (!canInviteCollaborators(list, req.user.uid)) {
+    throw createHttpError(403, 'Forbidden');
+  }
+
+  const email = normalizeEmail(
+    requireTrimmedString(req.body.email, 'email is required')
+  );
+  const permissions = sanitizePermissions(
+    Array.isArray(req.body.permissions) && req.body.permissions.length
+      ? req.body.permissions
+      : [COLLABORATOR_PERMISSIONS.READ]
+  );
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+  const invitation = await ListInvitation.findOneAndUpdate(
+    {
+      listId: list._id,
+      email,
+      status: 'pending'
+    },
+    {
+      $set: {
+        permissions,
+        invitedByUid: req.user.uid,
+        tokenHash: hashToken(token),
+        expiresAt
+      },
+      $setOnInsert: {
+        listId: list._id,
+        email
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  const inviteUrl = buildInviteUrl(token);
+  await sendInvitationEmail({
+    email,
+    inviteUrl,
+    listTitle: list.title
+  });
+
+  return res.status(201).json({
+    _id: invitation._id,
+    email: invitation.email,
+    permissions: invitation.permissions,
+    expiresAt: invitation.expiresAt,
+    createdAt: invitation.createdAt
+  });
 }));
 
 router.put('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => {
@@ -196,7 +276,7 @@ router.put('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => {
 
 /**
  * DELETE /lists/:id/collaborators/:collabUid
- * Remove collaborator (OWNER ONLY)
+ * Remove collaborator.
  */
 router.delete('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => {
   const list = await List.findById(req.params.id);
@@ -205,6 +285,9 @@ router.delete('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => 
   await ensureStructuredCollaborators(list);
   if (!canRemoveCollaborator(list, req.user.uid)) {
     throw createHttpError(403, 'Forbidden');
+  }
+  if (req.params.collabUid === list.ownerUid) {
+    throw createHttpError(400, 'Owner cannot be removed as a collaborator');
   }
 
   list.collaborators = list.collaborators.filter(

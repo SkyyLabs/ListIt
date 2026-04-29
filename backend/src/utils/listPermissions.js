@@ -105,7 +105,7 @@ function canUpdateCollaboratorPermissions(list, uid) {
 }
 
 function canRemoveCollaborator(list, uid) {
-  return isOwner(list, uid);
+  return canEditAll(list, uid);
 }
 
 module.exports = {
