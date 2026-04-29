@@ -132,7 +132,7 @@ router.delete('/:id', asyncHandler(async (req, res) => {
 
 /**
  * POST /lists/:id/collaborators
- * Invite collaborator by email or UID (OWNER ONLY)
+ * Invite collaborator by email or UID.
  */
 router.post('/:id/collaborators', asyncHandler(async (req, res) => {
   const list = await List.findById(req.params.id);
@@ -151,6 +151,10 @@ router.post('/:id/collaborators', asyncHandler(async (req, res) => {
     email,
     getTrimmedString(req.body.uid)
   );
+  if (collabUid === list.ownerUid) {
+    throw createHttpError(400, 'Owner cannot be added as a collaborator');
+  }
+
   const permissions = Array.isArray(req.body.permissions)
     ? req.body.permissions
     : undefined;
@@ -196,7 +200,7 @@ router.put('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => {
 
 /**
  * DELETE /lists/:id/collaborators/:collabUid
- * Remove collaborator (OWNER ONLY)
+ * Remove collaborator.
  */
 router.delete('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => {
   const list = await List.findById(req.params.id);
@@ -205,6 +209,9 @@ router.delete('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => 
   await ensureStructuredCollaborators(list);
   if (!canRemoveCollaborator(list, req.user.uid)) {
     throw createHttpError(403, 'Forbidden');
+  }
+  if (req.params.collabUid === list.ownerUid) {
+    throw createHttpError(400, 'Owner cannot be removed as a collaborator');
   }
 
   list.collaborators = list.collaborators.filter(

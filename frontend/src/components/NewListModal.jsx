@@ -62,8 +62,7 @@ export default function NewListModal({
     try {
       const payload = { title: t, categoryName: catName, isPublic };
       const list = await createList(payload);
-      onCreated(list);
-      onClose();
+      onCreated(list, { categoryName: catName || DEFAULT_CATEGORY_NAME });
     } catch (err) {
       console.error('Error creating list:', err);
       setError(err.response?.data || err.message);

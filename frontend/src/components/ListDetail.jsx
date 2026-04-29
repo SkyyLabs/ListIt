@@ -111,7 +111,7 @@ export default function ListDetail({
   const canEditItemMetadata = isOwner || hasEditAll;
   const canInvite = isOwner || hasEditAll;
   const canManagePermissions = isOwner || hasEditAll;
-  const canRemoveCollaborator = isOwner;
+  const canRemoveCollaborator = isOwner || hasEditAll;
   const canDelete = isOwner || (isAdmin && listState.isPublic);
   const canToggleItems = isOwner || isCollab;
   const canDuplicate = Boolean(
@@ -594,7 +594,7 @@ export default function ListDetail({
             canInvite={canInvite}
             canManagePermissions={canManagePermissions}
             canRemoveCollaborator={canRemoveCollaborator}
-            disabled={!editMode}
+            disabled={false}
             inviteEmail={inviteEmail}
             invitePermissions={invitePermissions}
             onInvite={handleInvite}

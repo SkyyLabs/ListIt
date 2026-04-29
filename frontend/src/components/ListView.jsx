@@ -1,6 +1,7 @@
 // frontend/src/components/ListView.js
 import React, { useState, useEffect, useRef } from 'react';
 import NewListModal from './NewListModal';
+import NewListItemsModal from './NewListItemsModal';
 import ListDetail from './ListDetail';
 import CategoryManager from './CategoryManager';
 import {
@@ -28,6 +29,7 @@ export default function ListView({ user }) {
   const [pinnedListIds, setPinnedListIds] = useState([]);
   const [pinnedListOrder, setPinnedListOrder] = useState([]);
   const [showNewList, setShowNewList] = useState(false);
+  const [pendingNewList, setPendingNewList] = useState(null);
   const [showCatManager, setShowCatManager] = useState(false);
   const [draggedPinnedId, setDraggedPinnedId] = useState(null);
   const isMountedRef = useRef(true);
@@ -246,6 +248,49 @@ export default function ListView({ user }) {
     setShowNewList(false);
   };
 
+  const getListCategoryId = list => {
+    if (!list?.categoryId) {
+      return '';
+    }
+    return typeof list.categoryId === 'string'
+      ? list.categoryId
+      : list.categoryId._id;
+  };
+
+  const prepareCreatedList = (list, { categoryName } = {}) => {
+    const categoryId = getListCategoryId(list);
+    const matchedCategory = categories.find(category =>
+      category._id === categoryId
+      || category.name.toLowerCase() === (categoryName || '').toLowerCase()
+    );
+    const category = matchedCategory || {
+      _id: categoryId,
+      name: categoryName,
+      subCategories: []
+    };
+
+    if (!matchedCategory && category._id && category.name) {
+      setCategories(currentCategories => [...currentCategories, category]);
+    }
+
+    return {
+      ...list,
+      categoryId: category
+    };
+  };
+
+  const handleNewListCreated = (list, metadata) => {
+    setPendingNewList(prepareCreatedList(list, metadata));
+    setShowNewList(false);
+  };
+
+  const finishNewListItems = () => {
+    if (pendingNewList) {
+      setLists(prev => [pendingNewList, ...prev]);
+    }
+    setPendingNewList(null);
+  };
+
   // The API returns all lists visible to the current request. This client-side
   // pass applies the user's personal "Show Public" preference on top of that.
   const visible = getVisibleLists(lists, user, showPublic);
@@ -452,8 +497,16 @@ export default function ListView({ user }) {
       {showNewList && (
         <NewListModal
           categories={visibleCategories}
-          onCreated={list => setLists(prev => [list, ...prev])}
+          onCreated={handleNewListCreated}
           onClose={() => setShowNewList(false)}
+        />
+      )}
+
+      {pendingNewList && (
+        <NewListItemsModal
+          list={pendingNewList}
+          subCategories={pendingNewList.categoryId?.subCategories || []}
+          onFinish={finishNewListItems}
         />
       )}
     </div>
