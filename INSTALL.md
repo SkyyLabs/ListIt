@@ -40,10 +40,13 @@ Backend example:
 
 ```env
 PORT=4000
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=http://localhost:3000,https://listitt.com,https://www.listitt.com
+FRONTEND_ORIGIN=http://localhost:3000
 MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
 ADMIN_UID=<firebase-user-uid-for-seeded-categories>
 FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"...","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"...","client_id":"...","auth_uri":"...","token_uri":"...","auth_provider_x509_cert_url":"...","client_x509_cert_url":"..."}
+RESEND_API_KEY=<optional-resend-api-key-for-email-invites>
+INVITE_FROM_EMAIL=ListIt <noreply@example.com>
 ```
 
 Frontend example:

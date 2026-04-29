@@ -21,7 +21,7 @@ import {
   uniqueSortedStrings
 } from '../utils/sorting';
 import {
-  addCollaborator,
+  createCollaboratorInvitation,
   duplicateList,
   removeCollaborator,
   removeList,
@@ -180,16 +180,29 @@ export default function ListDetail({
       return;
     }
     try {
-      const updatedList = await addCollaborator(listState._id, {
+      const invitation = await createCollaboratorInvitation(listState._id, {
         email: inviteEmail.trim(),
         permissions: invitePermissions
       });
       if (!isMountedRef.current) return;
       setListState(s => ({
         ...s,
-        collaborators: updatedList.collaborators || s.collaborators
+        pendingInvitations: [
+          invitation,
+          ...(s.pendingInvitations || []).filter(
+            existingInvitation => existingInvitation.email !== invitation.email
+          )
+        ]
       }));
-      onListUpdate?.(updatedList);
+      onListUpdate?.({
+        ...listState,
+        pendingInvitations: [
+          invitation,
+          ...(listState.pendingInvitations || []).filter(
+            existingInvitation => existingInvitation.email !== invitation.email
+          )
+        ]
+      });
       setInviteEmail('');
       setInvitePermissions([COLLABORATOR_PERMISSIONS.READ]);
       setError('');
@@ -591,6 +604,7 @@ export default function ListDetail({
         <div className="mb-4">
           <CollaboratorPanel
             collaborators={collaborators}
+            pendingInvitations={listState.pendingInvitations || []}
             canInvite={canInvite}
             canManagePermissions={canManagePermissions}
             canRemoveCollaborator={canRemoveCollaborator}

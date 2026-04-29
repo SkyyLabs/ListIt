@@ -74,10 +74,13 @@ Create a `.env` file in `backend/` and another in `frontend/`.
 
 ```env
 PORT=4000
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=http://localhost:3000,https://listitt.com,https://www.listitt.com
+FRONTEND_ORIGIN=http://localhost:3000
 MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
 ADMIN_UID=<firebase-user-uid-for-seeded-categories>
 FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"listit","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"...","client_id":"...","auth_uri":"...","token_uri":"...","auth_provider_x509_cert_url":"...","client_x509_cert_url":"..."}
+RESEND_API_KEY=<optional-resend-api-key-for-email-invites>
+INVITE_FROM_EMAIL=ListIt <noreply@example.com>
 ```
 
 Notes:
@@ -85,6 +88,8 @@ Notes:
 - `ADMIN_UID` is used only when seeding the default public categories so those categories have a real owner.
 - Runtime admin access is not controlled by `ADMIN_UID`. Runtime admin access uses Firebase custom claims.
 - `FIREBASE_SERVICE_ACCOUNT_KEY` must be a single-line JSON string.
+- Collaborator invitations use `RESEND_API_KEY` when configured. Without it, the backend logs the invite link for local development.
+- `CORS_ORIGIN` accepts a comma-separated list of allowed frontend origins.
 
 ### `frontend/.env`
 
@@ -263,6 +268,12 @@ Authorization: Bearer <firebase-id-token>
 - `DELETE /lists/:id`
 - `POST /lists/:id/collaborators`
 - `DELETE /lists/:id/collaborators/:collabUid`
+- `POST /lists/:id/invitations`
+
+### Invitations
+
+- `GET /invitations/:token`
+- `POST /invitations/:token/accept`
 
 ### Items
 

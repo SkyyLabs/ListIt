@@ -6,6 +6,7 @@ const { PassThrough, Readable, Writable } = require('node:stream');
 const Category = require('../models/Category');
 const Item = require('../models/Item');
 const List = require('../models/List');
+const ListInvitation = require('../models/ListInvitation');
 const ListReaction = require('../models/ListReaction');
 const { errorHandler } = require('../middlewares/errorHandler');
 
@@ -21,6 +22,7 @@ let originalItemFindById;
 let originalListFindById;
 let originalItemCountDocuments;
 let originalListFind;
+let originalListInvitationFind;
 let originalListReactionFind;
 let originalListReactionFindOneAndUpdate;
 let originalListReactionDeleteOne;
@@ -161,6 +163,7 @@ test.before(() => {
   originalItemFindById = Item.findById;
   originalListFindById = List.findById;
   originalListFind = List.find;
+  originalListInvitationFind = ListInvitation.find;
   originalItemCountDocuments = Item.countDocuments;
   originalListReactionFind = ListReaction.find;
   originalListReactionFindOneAndUpdate = ListReaction.findOneAndUpdate;
@@ -175,6 +178,7 @@ test.after(() => {
   Item.findById = originalItemFindById;
   List.findById = originalListFindById;
   List.find = originalListFind;
+  ListInvitation.find = originalListInvitationFind;
   Item.countDocuments = originalItemCountDocuments;
   ListReaction.find = originalListReactionFind;
   ListReaction.findOneAndUpdate = originalListReactionFindOneAndUpdate;
@@ -237,6 +241,12 @@ test.beforeEach(() => {
     lean: async () => []
   });
   ListReaction.find = () => ({
+    lean: async () => []
+  });
+  ListInvitation.find = () => ({
+    select() {
+      return this;
+    },
     lean: async () => []
   });
   ListReaction.findOneAndUpdate = async () => ({});
