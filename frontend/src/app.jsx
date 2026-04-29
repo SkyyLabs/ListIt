@@ -8,9 +8,9 @@ function App() {
   const { user, login, logout } = useAuth();
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="app-shell flex min-h-full flex-col">
       <NavBar user={user} onLogin={login} onLogout={logout} />
-      <main className={`flex-1 overflow-auto ${user ? 'p-6' : ''}`}>
+      <main className={`flex-1 overflow-auto ${user ? 'px-4 py-6 sm:px-6 lg:px-8' : ''}`}>
         {user ? <ListView user={user} /> : <LandingPage onLogin={login} />}
       </main>
     </div>

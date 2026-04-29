@@ -47,22 +47,22 @@ export default function CategoryManager({ categories, setCategories, user }) {
   // (Your existing rename & delete handlers go here — unchanged)
 
   return (
-    <div className="my-4 p-4 border rounded bg-gray-50">
-      <h3 className="font-medium mb-2">Manage Categories</h3>
+    <div className="surface mb-8 rounded-[28px] p-5">
+      <h3 className="mb-4 text-xl font-semibold text-slate-950">Manage Categories</h3>
       <InlineError message={error} className="mb-3" />
 
       {isAdmin && (
-        <div className="flex gap-2 mb-4">
+        <div className="mb-4 flex gap-2">
           <input
             type="text"
-            className="flex-1 border px-2 py-1 rounded"
+            className="field flex-1"
             placeholder="New category name"
             value={newName}
             onChange={e => setNewName(e.target.value)}
           />
           <button
             onClick={handleAdd}
-            className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            className="primary-button"
           >
             Add
           </button>
@@ -75,7 +75,7 @@ export default function CategoryManager({ categories, setCategories, user }) {
           const canRename = isOwner || isAdmin;
 
           return (
-            <li key={cat._id} className="flex items-center gap-2">
+            <li key={cat._id} className="flex items-center gap-2 rounded-2xl bg-slate-50/80 p-2">
               <input
                 type="text"
                 disabled={!canRename}
@@ -83,7 +83,7 @@ export default function CategoryManager({ categories, setCategories, user }) {
                 onChange={e =>
                   setEditNames(prev => ({ ...prev, [cat._id]: e.target.value }))
                 }
-                className="flex-1 border px-2 py-1 rounded"
+                className="field flex-1 disabled:bg-transparent disabled:text-slate-500"
               />
               {canRename && (
                 <button
@@ -103,7 +103,7 @@ export default function CategoryManager({ categories, setCategories, user }) {
                       setError(err.response?.data || err.message);
                     }
                   }}
-                  className="px-2 py-1 bg-green-300 rounded hover:bg-green-500 text-xs"
+                  className="secondary-button px-3 py-2 text-xs"
                 >
                   Rename
                 </button>
@@ -120,7 +120,7 @@ export default function CategoryManager({ categories, setCategories, user }) {
                       setError(err.response?.data || err.message);
                     }
                   }}
-                  className="px-2 py-1 bg-red-400 rounded hover:bg-red-600 text-xs"
+                  className="danger-button px-3 py-2 text-xs"
                 >
                   Delete
                 </button>

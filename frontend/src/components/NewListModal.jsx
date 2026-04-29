@@ -72,20 +72,20 @@ export default function NewListModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
+      className="modal-backdrop"
       onClick={onClose}
     >
       <form
         onClick={e => e.stopPropagation()}
         onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-md shadow-md w-80 space-y-4"
+        className="modal-panel max-w-md space-y-4"
       >
-        <h2 className="text-lg font-semibold">New List</h2>
+        <h2 className="text-2xl font-semibold text-slate-950">New List</h2>
         <InlineError message={error} />
 
         <input
           type="text"
-          className="w-full border rounded px-2 py-1"
+          className="field"
           placeholder="List Title"
           value={title}
           onChange={e => setTitle(e.target.value)}
@@ -98,7 +98,7 @@ export default function NewListModal({
           </label>
           <input
             type="text"
-            className="w-full border rounded px-2 py-1"
+            className="field"
             placeholder="Type to Search or Add New"
             value={categoryName}
             onChange={e => {
@@ -108,33 +108,33 @@ export default function NewListModal({
             onFocus={() => setShowSuggestions(true)}
           />
           {showSuggestions && (
-            <ul className="absolute z-10 bg-white border w-full max-h-40 overflow-auto mt-1 rounded">
+            <ul className="absolute z-10 mt-2 max-h-44 w-full overflow-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
               {filteredCats.length > 0 ? (
                 filteredCats.map(cat => (
                   <li
                     key={cat._id}
                     onClick={() => handleSelectCat(cat.name)}
-                    className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
+                    className="cursor-pointer rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                   >
                     {cat.name}
                   </li>
                 ))
               ) : (
-                <li className="px-2 py-1 text-gray-500">No matches</li>
+                <li className="px-3 py-2 text-sm text-slate-500">No matches</li>
               )}
             </ul>
           )}
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-2 text-xs text-slate-500">
             {`Leave blank for "${DEFAULT_CATEGORY_NAME}"`}
           </p>
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
+        <label className="toggle-label w-fit">
           <input
             type="checkbox"
             checked={isPublic}
             onChange={e => setIsPublic(e.target.checked)}
-            className="mr-2"
+            className="h-4 w-4 rounded border-slate-300"
           />
           Public
         </label>
@@ -143,13 +143,13 @@ export default function NewListModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1 border rounded hover:bg-gray-100 transition"
+            className="secondary-button"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-4 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition"
+            className="primary-button"
           >
             Create
           </button>

@@ -23,18 +23,18 @@ export default function CollaboratorPanel({
     <>
       <button
         onClick={toggleCollaborators}
-        className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 transition hover:bg-white sm:text-sm"
+        className="secondary-button px-3 py-2 text-xs"
       >
         Collaborators
       </button>
       {showCollaborators && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
+        <div className="modal-backdrop">
+          <div className="modal-panel max-w-2xl">
             <div className="mb-4 flex items-center justify-between">
-              <h4 className="text-base font-semibold sm:text-lg">Collaborators</h4>
+              <h4 className="text-xl font-semibold text-slate-950">Collaborators</h4>
               <button
                 onClick={toggleCollaborators}
-                className="rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100"
+                className="icon-button"
               >
                 ×
               </button>
@@ -45,14 +45,14 @@ export default function CollaboratorPanel({
                 {collaborators.map(collaborator => (
                   <li
                     key={collaborator.uid}
-                    className="flex items-start justify-between gap-3 rounded-xl border border-gray-200 p-3 text-xs sm:text-sm"
+                    className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs sm:text-sm"
                   >
                     <div className="flex-1">
-                      <div>{getUserDisplayLabel(collaborator)}</div>
+                      <div className="font-semibold text-slate-900">{getUserDisplayLabel(collaborator)}</div>
                       {collaborator.uid !== ownerUid && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {Object.values(COLLABORATOR_PERMISSIONS).map(permission => (
-                            <label key={permission} className="flex items-center gap-1">
+                            <label key={permission} className="chip gap-2">
                               <input
                                 type="checkbox"
                                 checked={(collaborator.permissions || []).includes(permission)}
@@ -79,7 +79,7 @@ export default function CollaboratorPanel({
                       <button
                         onClick={() => onRemoveCollaborator(collaborator.uid)}
                         disabled={disabled}
-                        className="px-2 font-bold text-red-500"
+                        className="icon-button text-rose-600"
                         title="Remove collaborator"
                       >
                         −
@@ -89,13 +89,13 @@ export default function CollaboratorPanel({
                 ))}
               </ul>
             ) : (
-              <div className="mb-4 text-xs text-gray-500 sm:text-sm">
+              <div className="mb-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
                 No collaborators
               </div>
             )}
 
             {canInvite && (
-              <form onSubmit={onInvite} className="flex gap-2">
+              <form onSubmit={onInvite} className="flex gap-3">
                 <div className="flex-1 space-y-2">
                   <input
                     type="email"
@@ -103,12 +103,12 @@ export default function CollaboratorPanel({
                     onChange={e => onInviteEmailChange(e.target.value)}
                     placeholder="Invite by email"
                     disabled={disabled}
-                    className="w-full rounded border px-2 py-1 text-xs sm:text-sm"
+                    className="field"
                     required
                   />
                   <div className="flex flex-wrap gap-2">
                     {Object.values(COLLABORATOR_PERMISSIONS).map(permission => (
-                      <label key={permission} className="flex items-center gap-1 text-xs">
+                      <label key={permission} className="chip gap-2">
                         <input
                           type="checkbox"
                           checked={invitePermissions.includes(permission)}
@@ -125,7 +125,7 @@ export default function CollaboratorPanel({
                 <button
                   type="submit"
                   disabled={disabled}
-                  className="rounded bg-indigo-600 px-3 py-1 text-xs text-white hover:bg-indigo-700 sm:px-4 sm:py-2 sm:text-sm"
+                  className="primary-button self-start"
                 >
                   Invite
                 </button>

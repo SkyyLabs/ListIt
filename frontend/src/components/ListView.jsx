@@ -290,12 +290,23 @@ export default function ListView({ user }) {
   const regularLists = [...personalLists, ...publicLists];
 
   return (
-    <>
-      <div className="flex flex-wrap items-center gap-4 mb-6">
+    <div className="mx-auto max-w-7xl">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <div className="chip mb-3">Workspace</div>
+          <h1 className="text-3xl font-semibold text-slate-950 sm:text-4xl">
+            Your lists
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Personal progress, shared structure, and ranked public discoveries in one view.
+          </p>
+        </div>
+
+        <div className="control-bar flex flex-wrap items-center gap-3">
         {user && (
           <button
             onClick={() => setShowNewList(true)}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition"
+            className="primary-button"
           >
             + New List
           </button>
@@ -304,42 +315,42 @@ export default function ListView({ user }) {
         {isAdmin && (
           <button
             onClick={() => setShowCatManager(v => !v)}
-            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition"
+            className="secondary-button"
           >
             {showCatManager ? 'Hide Categories' : 'Manage Categories'}
           </button>
         )}
 
         {user && (
-          <label className="flex items-center gap-2 text-sm">
+          <label className="toggle-label">
             <input
               type="checkbox"
               checked={showPublic}
               onChange={handleShowPublicChange}
-              className="h-4 w-4"
+              className="h-4 w-4 rounded border-slate-300 text-slate-950"
             />
             Show Public
           </label>
         )}
 
         {user && (
-          <label className="flex items-center gap-2 text-sm">
+          <label className="toggle-label">
             <input
               type="checkbox"
               checked={showPinnedOnly}
               onChange={handleShowPinnedOnlyChange}
-              className="h-4 w-4"
+              className="h-4 w-4 rounded border-slate-300 text-slate-950"
             />
             Pinned Only
           </label>
         )}
 
-        <label className="flex items-center gap-2 text-sm">
-          Category:
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+          Category
           <select
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
-            className="ml-1 border px-2 py-1 rounded-md text-sm"
+            className="select-field"
           >
             <option value="">All</option>
             {visibleCategories.map(c => (
@@ -349,6 +360,7 @@ export default function ListView({ user }) {
             ))}
           </select>
         </label>
+        </div>
       </div>
 
       {isAdmin && showCatManager && (
@@ -361,13 +373,13 @@ export default function ListView({ user }) {
 
       {pinnedLists.length > 0 && (
         <section className="mb-8">
-          <div className="mb-3 flex items-center gap-3">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-600">
+          <div className="mb-4 flex items-center gap-3">
+            <h2 className="text-xs font-semibold uppercase text-slate-500">
               Pinned Lists
             </h2>
-            <div className="h-px flex-1 bg-gray-300" />
+            <div className="h-px flex-1 bg-slate-300/70" />
           </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {pinnedLists.map(list => (
               <ListDetail
                 key={list._id}
@@ -402,10 +414,10 @@ export default function ListView({ user }) {
       )}
 
       {pinnedLists.length > 0 && regularLists.length > 0 && (
-        <div className="mb-8 h-px w-full bg-gray-300" />
+        <div className="mb-8 h-px w-full bg-slate-300/70" />
       )}
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {regularLists.map(list => (
           <ListDetail
             key={list._id}
@@ -444,6 +456,6 @@ export default function ListView({ user }) {
           onClose={() => setShowNewList(false)}
         />
       )}
-    </>
+    </div>
   );
 }

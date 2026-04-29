@@ -16,20 +16,23 @@ export default function ListItems({
   _user
 }) {
   return (
-    <ul className="soft-scrollbar mb-4 max-h-32 space-y-1 overflow-auto sm:max-h-40 sm:space-y-2 md:max-h-48">
+    <ul className="soft-scrollbar mb-4 max-h-52 space-y-2 overflow-auto pr-1">
       {displayItems.map(item => {
         const canRemoveItem = canRemoveItems;
         const isRemoved = itemsToRemove.has(item._id);
         const draftItem = draftItems[item._id] || item;
 
         return (
-          <li key={item._id} className="flex items-start gap-2">
+          <li
+            key={item._id}
+            className={`flex items-start gap-3 rounded-2xl bg-white/48 p-3 shadow-sm transition ${isRemoved ? 'opacity-60' : ''}`}
+          >
             <input
               type="checkbox"
               checked={item.done}
               disabled={editMode || !canToggleItems}
               onChange={() => onToggleDone(item)}
-              className="mt-1 h-4 w-4 flex-shrink-0 sm:h-5 sm:w-5"
+              className="mt-1 h-5 w-5 flex-shrink-0 rounded-md border-slate-300 text-slate-950"
             />
             <div className="min-w-0 flex-1">
               {editMode && canEditItemMetadata ? (
@@ -40,7 +43,7 @@ export default function ListItems({
                     onChange={event =>
                       onDraftItemChange(item._id, 'text', event.target.value)
                     }
-                    className="w-full rounded border px-2 py-1 text-sm"
+                    className="field py-1.5"
                   />
                   <input
                     type="text"
@@ -49,7 +52,7 @@ export default function ListItems({
                     onChange={event =>
                       onDraftItemChange(item._id, 'subCategory', event.target.value)
                     }
-                    className="w-full rounded border px-2 py-1 text-xs sm:text-sm"
+                    className="field py-1.5 text-xs"
                   />
                   <datalist id={`subcategories-${item._id}`}>
                     {availableSubCategories.map(subCategory => (
@@ -58,13 +61,13 @@ export default function ListItems({
                   </datalist>
                 </div>
               ) : (
-                <span className={item.done ? 'line-through text-gray-500' : ''}>
+                <span className={`text-sm font-semibold leading-6 ${item.done ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
                   {draftItem.text}
                 </span>
               )}
             </div>
             {draftItem.subCategory && (
-              <span className="flex-shrink-0 text-xs sm:text-sm italic text-gray-700">
+              <span className="max-w-[34%] flex-shrink-0 truncate rounded-full bg-white/60 px-2 py-1 text-xs font-semibold text-slate-600">
                 {draftItem.subCategory}
               </span>
             )}
@@ -72,14 +75,14 @@ export default function ListItems({
               isRemoved ? (
                 <button
                   onClick={() => onUndoRemove(item._id)}
-                  className="flex-shrink-0 text-yellow-600 text-xs sm:text-sm"
+                  className="flex-shrink-0 text-xs font-semibold text-amber-700"
                 >
                   Undo
                 </button>
               ) : (
                 <button
                   onClick={() => onRemoveItem(item._id)}
-                  className="flex-shrink-0 text-red-600 text-xs sm:text-sm"
+                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white/65 text-sm font-semibold text-rose-600"
                 >
                   −
                 </button>

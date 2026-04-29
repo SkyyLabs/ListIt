@@ -3,193 +3,163 @@ import { motion } from 'framer-motion';
 import { APP_NAME } from '../config/constants';
 
 const featureCards = [
-  {
-    title: 'Shared list, private progress',
-    body: 'Everyone sees the same items, but each person keeps their own completion state.'
-  },
-  {
-    title: 'Permissioned collaboration',
-    body: 'Invite people to read, add and remove, or fully manage list details without handing over ownership.'
-  },
-  {
-    title: 'Pinned and ranked',
-    body: 'Keep your important lists pinned, while public lists compete through likes, dislikes, and activity-based ranking.'
-  }
+  ['Personal progress', 'A shared list can be finished differently by every collaborator.'],
+  ['Permissioned editing', 'Give people read, add/remove, or full edit access without handing over ownership.'],
+  ['Discovery signal', 'Public lists can be liked, disliked, ranked, duplicated, and pinned.']
 ];
 
-const workflowSteps = [
-  'Create a list and attach it to a category.',
-  'Add collaborators and give them the right level of control.',
-  'Track your own progress without altering anyone else’s view.'
+const boardItems = [
+  ['Book Kyoto stay', 'Hotels', false],
+  ['Save ramen spots', 'Eateries', true],
+  ['Find quiet day trip', 'Trips', false],
+  ['Compare rail passes', 'Planning', true]
 ];
 
 export default function LandingPage({ onLogin }) {
   return (
-    <div className="relative overflow-hidden">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_32%),radial-gradient(circle_at_80%_20%,_rgba(16,185,129,0.18),_transparent_28%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_48%,_#f8fafc_100%)]" />
+    <div className="overflow-hidden">
+      <section className="relative mx-auto grid min-h-[calc(100vh-72px)] max-w-7xl gap-10 px-4 pb-10 pt-8 sm:px-6 lg:grid-cols-[0.96fr_1.04fr] lg:items-center lg:px-8">
+        <div className="absolute inset-x-4 bottom-0 top-8 -z-10 rounded-[42px] border border-white/70 bg-white/45 shadow-[0_30px_100px_-70px_rgba(15,23,42,0.85)] backdrop-blur sm:inset-x-6 lg:inset-x-8" />
 
-      <section className="mx-auto max-w-6xl px-6 pb-20 pt-10 sm:px-8 lg:px-10">
-        <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55 }}
-            className="space-y-8"
-          >
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-1 text-sm text-slate-600 shadow-sm backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Collaborative lists without shared checkmarks
-            </div>
-
-            <div className="space-y-5">
-              <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-                {APP_NAME} keeps the list social and the progress personal.
-              </h1>
-              <p className="max-w-2xl text-lg leading-8 text-slate-600 sm:text-xl">
-                Build public or private lists, invite collaborators, pin what matters,
-                and let every user move through the same collection at their own pace.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                onClick={onLogin}
-                className="rounded-full bg-slate-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-slate-700"
-              >
-                Start with Google
-              </button>
-              <div className="text-sm text-slate-500">
-                Google sign-in, shared lists, per-user progress
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              {featureCards.map((card, index) => (
-                <motion.div
-                  key={card.title}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.08 * (index + 1), duration: 0.45 }}
-                  className="rounded-3xl border border-slate-200/80 bg-white/85 p-5 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.32)] backdrop-blur"
-                >
-                  <h2 className="mb-2 text-base font-semibold text-slate-900">
-                    {card.title}
-                  </h2>
-                  <p className="text-sm leading-6 text-slate-600">{card.body}</p>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.55, delay: 0.08 }}
-            className="relative"
-          >
-            <div className="absolute -left-6 top-6 hidden h-28 w-28 rounded-full bg-amber-200/70 blur-2xl lg:block" />
-            <div className="absolute -right-5 bottom-2 hidden h-24 w-24 rounded-full bg-sky-200/70 blur-2xl lg:block" />
-
-            <div className="relative rounded-[2rem] border border-slate-200 bg-white/90 p-5 shadow-[0_35px_100px_-45px_rgba(30,41,59,0.55)] backdrop-blur">
-              <div className="mb-4 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.22em] text-slate-400">
-                    Live board
-                  </div>
-                  <div className="text-lg font-semibold text-slate-900">
-                    Trips / Summer shortlist
-                  </div>
-                </div>
-                <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                  Public
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="rounded-2xl bg-amber-100 p-4">
-                  <div className="mb-3 flex items-center justify-between text-sm text-slate-500">
-                    <span>Shared items</span>
-                    <span>Subcategory sort</span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <span className="mt-1 h-5 w-5 rounded border border-slate-300 bg-white" />
-                      <div className="flex-1">
-                        <div className="text-base text-slate-900">Book Kyoto stay</div>
-                        <div className="text-xs italic text-slate-500">Hotels</div>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="mt-1 h-5 w-5 rounded border border-emerald-500 bg-emerald-500/90" />
-                      <div className="flex-1">
-                        <div className="text-base text-slate-900">Save ramen spots</div>
-                        <div className="text-xs italic text-slate-500">Eateries</div>
-                      </div>
-                      <div className="rounded-full bg-white px-2 py-1 text-[11px] text-slate-500">
-                        done by you
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="mt-1 h-5 w-5 rounded border border-slate-300 bg-white" />
-                      <div className="flex-1">
-                        <div className="text-base text-slate-900">Find quiet day trip</div>
-                        <div className="text-xs italic text-slate-500">Trips</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-sky-50 p-4">
-                    <div className="mb-2 text-sm font-medium text-slate-800">Collaborator rights</div>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="rounded-full bg-white px-3 py-1 text-xs text-slate-600 shadow-sm">READ</span>
-                      <span className="rounded-full bg-white px-3 py-1 text-xs text-slate-600 shadow-sm">ADD_REMOVE</span>
-                      <span className="rounded-full bg-slate-900 px-3 py-1 text-xs text-white shadow-sm">EDIT_ALL</span>
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-emerald-50 p-4">
-                    <div className="mb-2 text-sm font-medium text-slate-800">Public ranking</div>
-                    <div className="flex items-center justify-between text-sm text-slate-600">
-                      <span>Likes 42 / Dislikes 3</span>
-                      <span className="font-semibold text-slate-900">Score +17</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-6 pb-24 sm:px-8 lg:px-10">
-        <div className="grid gap-6 rounded-[2rem] border border-slate-200 bg-white/80 p-8 shadow-[0_24px_80px_-45px_rgba(15,23,42,0.4)] backdrop-blur lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="space-y-3">
-            <div className="text-sm font-medium uppercase tracking-[0.2em] text-slate-400">
-              How it works
-            </div>
-            <h2 className="text-3xl font-semibold text-slate-900">
-              Built for lists that outgrow one person.
-            </h2>
-            <p className="max-w-lg text-base leading-7 text-slate-600">
-              The app already supports private and public lists, item permissions,
-              pins, collaborator roles, and weighted reactions for discovery.
-            </p>
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="px-2 py-8 sm:px-6 lg:py-16"
+        >
+          <div className="mb-6 inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            Lists stay shared. Checkmarks stay yours.
           </div>
 
-          <div className="grid gap-4">
-            {workflowSteps.map((step, index) => (
-              <div
-                key={step}
-                className="flex gap-4 rounded-2xl border border-slate-200 bg-slate-50/85 p-4"
-              >
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-sm font-semibold text-white">
-                  {index + 1}
-                </div>
-                <p className="pt-1 text-base leading-7 text-slate-700">{step}</p>
+          <h1 className="max-w-3xl text-5xl font-semibold leading-[1.02] tracking-normal text-slate-950 sm:text-6xl lg:text-7xl">
+            {APP_NAME} makes shared lists feel personal.
+          </h1>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 sm:text-xl">
+            Build a public library of ideas or a private planning board, invite the
+            right people, and let everyone move through the same list at their own pace.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <button onClick={onLogin} className="primary-button px-6 py-3">
+              Start with Google
+            </button>
+            <div className="chip">Firebase auth</div>
+            <div className="chip">Mongo-backed progress</div>
+          </div>
+
+          <div className="mt-10 grid gap-3 sm:grid-cols-3">
+            {featureCards.map(([title, body]) => (
+              <div key={title} className="surface rounded-[24px] p-4">
+                <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
               </div>
             ))}
           </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 18, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.55, delay: 0.08 }}
+          className="px-2 pb-8 sm:px-6 lg:py-14"
+        >
+          <div className="relative mx-auto max-w-2xl">
+            <div className="surface overflow-hidden rounded-[34px]">
+              <div className="border-b border-slate-200/80 bg-slate-950 px-5 py-5 text-white sm:px-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-xs font-semibold uppercase text-emerald-300">
+                      Live board
+                    </div>
+                    <div className="mt-1 text-2xl font-semibold">Trips / Summer shortlist</div>
+                  </div>
+                  <div className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-semibold text-emerald-950">
+                    Public
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 bg-[#f8faf7] p-4 sm:grid-cols-[1fr_0.72fr] sm:p-6">
+                <div className="rounded-[26px] bg-[#fff2bd] p-4 shadow-inner">
+                  <div className="mb-4 flex items-center justify-between text-xs font-semibold text-slate-500">
+                    <span>Shared items</span>
+                    <span>Sorted by subcategory</span>
+                  </div>
+                  <div className="space-y-3">
+                    {boardItems.map(([text, category, done]) => (
+                      <div key={text} className="flex items-start gap-3 rounded-2xl bg-white/62 p-3">
+                        <span className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-md border ${done ? 'border-emerald-600 bg-emerald-500' : 'border-slate-300 bg-white'}`}>
+                          {done && <span className="h-2 w-2 rounded-full bg-white" />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className={`text-sm font-semibold ${done ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                            {text}
+                          </div>
+                          <div className="mt-1 text-xs italic text-slate-500">{category}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-[26px] bg-white p-4 shadow-sm">
+                    <div className="mb-3 text-sm font-semibold text-slate-950">Collaborators</div>
+                    <div className="space-y-2">
+                      {['Owner', 'READ', 'ADD_REMOVE', 'EDIT_ALL'].map((label, index) => (
+                        <div key={label} className="flex items-center gap-2">
+                          <span className={`h-8 w-8 rounded-full ${index === 0 ? 'bg-slate-950' : 'bg-slate-200'}`} />
+                          <span className="text-xs font-semibold text-slate-600">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[26px] bg-[#d7f4e3] p-4 shadow-sm">
+                    <div className="text-sm font-semibold text-slate-950">Public ranking</div>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <div className="rounded-2xl bg-white/75 p-3">
+                        <div className="text-2xl font-semibold text-slate-950">42</div>
+                        <div className="text-xs font-semibold text-slate-500">Likes</div>
+                      </div>
+                      <div className="rounded-2xl bg-white/75 p-3">
+                        <div className="text-2xl font-semibold text-slate-950">+17</div>
+                        <div className="text-xs font-semibold text-slate-500">Score</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[26px] bg-[#dbeafe] p-4 shadow-sm">
+                    <div className="text-sm font-semibold text-slate-950">Pinned order</div>
+                    <div className="mt-3 flex gap-2">
+                      <span className="h-3 flex-1 rounded-full bg-slate-950" />
+                      <span className="h-3 flex-[0.75] rounded-full bg-slate-400" />
+                      <span className="h-3 flex-[0.45] rounded-full bg-slate-300" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="grid gap-4 lg:grid-cols-3">
+          {[
+            ['Create', 'Make a category-backed public or private list.'],
+            ['Invite', 'Set exact collaborator permissions for the job.'],
+            ['Track', 'Complete items without changing anyone else’s progress.']
+          ].map(([title, body], index) => (
+            <div key={title} className="surface rounded-[28px] p-6">
+              <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
+                {index + 1}
+              </div>
+              <h2 className="text-xl font-semibold text-slate-950">{title}</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
+            </div>
+          ))}
         </div>
       </section>
     </div>
