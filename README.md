@@ -12,6 +12,8 @@ The key product rule is simple: two people can work from the same list, but chec
 - Categories and optional item sub-categories
 - Per-user item completion through each item's `doneBy` list
 - Pinned lists, liked/disliked lists, duplicated lists, and ranked public discovery
+- Discover-to-Home flow: signed-in users can add public lists to Home with `+` or thumbs up
+- Liked-only public lists can be removed from Home without disliking them
 - Collaborator invitations by email
 - Invitation accept flow through `/invites/:token`
 - Staged collaborator changes that apply only after clicking `Done`
@@ -204,6 +206,8 @@ npm test
 - Clicking the ListIt logo/title intentionally opens the landing page.
 - `/home` shows the signed-in user's owned, collaborating, pinned, and liked lists.
 - `/discover` shows public lists. For signed-in users, Discover excludes lists they already own, collaborate on, pinned, or liked.
+- On Discover, signed-in users can click `+` or the thumbs-up button to add a public list to Home. This likes the list and shows `List was added to Home`.
+- On Home, public lists that are present only because the user liked them show a top-right `Remove` button. This clears the like and removes the list from Home without disliking it.
 - Logged-out users can browse public lists on `/discover`.
 - `/about`, `/help`, and `/contact` are footer info pages.
 - `/invites/:token` handles invitation acceptance.
