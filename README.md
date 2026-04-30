@@ -1,38 +1,39 @@
 # ListIt
 
-ListIt is a collaborative list app where the list is shared but completion is personal.
+ListIt is a collaborative list app where lists can be shared, but item completion stays personal to each user.
 
-Two people can look at the same list, but each person keeps their own checked-off progress. That is the main rule the app is built around.
+The key product rule is simple: two people can work from the same list, but checking an item off only updates that person's progress.
 
-## What the app does
+## Features
 
-- Sign in with Google through Firebase Authentication
-- Create lists and assign them to categories
-- Add items with optional sub-categories
-- Invite collaborators by email
-- Mark items done without affecting anyone else
-- Choose whether public lists should appear in your own view
-- Manage categories through an admin-only UI
+- Google sign-in with Firebase Authentication
+- Landing page, authenticated Home view, and public Discover view
+- Public and private lists
+- Categories and optional item sub-categories
+- Per-user item completion through each item's `doneBy` list
+- Pinned lists, liked/disliked lists, duplicated lists, and ranked public discovery
+- Collaborator invitations by email
+- Invitation accept flow through `/invites/:token`
+- Staged collaborator changes that apply only after clicking `Done`
+- Permission levels:
+  - `Read Only`
+  - `Edit`
+  - `Edit All`
+- Pending invitation cancellation
+- Collaborators can leave a list themselves
+- Owner/Edit All users can remove collaborators; owners cannot be removed
+- Admin-only category deletion and public-list admin deletion
 
-## Core behavior
-
-The most important product rule is:
-
-- Lists can be shared
-- Item completion is not shared
-
-Each item stores a `doneBy` array in MongoDB. The backend converts that into a user-specific `done` flag when it returns items to the frontend. When a user toggles an item, only that user's UID is added to or removed from `doneBy`.
-
-## Tech stack
+## Tech Stack
 
 | Layer | Stack |
 | --- | --- |
-| Frontend | React 18, Axios, Framer Motion, Tailwind CSS, Firebase Web SDK |
+| Frontend | React 18, Vite, Axios, Framer Motion, Tailwind CSS, Firebase Web SDK |
 | Backend | Node.js, Express, MongoDB, Mongoose, Firebase Admin |
-| Auth | Firebase Authentication with Google sign-in |
-| Testing | React Testing Library on the frontend, Node built-in test runner on the backend |
+| Email | Resend HTTP API |
+| Testing | Vitest on the frontend, Node built-in test runner on the backend |
 
-## Repository layout
+## Repository Layout
 
 ```text
 .
@@ -53,43 +54,43 @@ Each item stores a `doneBy` array in MongoDB. The backend converts that into a u
         └── utils
 ```
 
-Note: the local repository folder may still be named `Lister`, but the app name is **ListIt**.
+The local repository folder may still be named `Lister`, but the app name is **ListIt**.
 
 ## Prerequisites
 
-You need:
-
 - Node.js 18 or newer
 - npm
-- A MongoDB database
-- A Firebase project
-- Google sign-in enabled in Firebase Authentication
-- A Firebase service account key for the backend
+- MongoDB database
+- Firebase project with Google Authentication enabled
+- Firebase service account JSON for the backend
+- Resend API key and verified sender domain if you want real invitation/notification emails
 
-## Environment variables
+## Environment Variables
 
-Create a `.env` file in `backend/` and another in `frontend/`.
+Create `backend/.env` and `frontend/.env`.
 
 ### `backend/.env`
 
 ```env
 PORT=4000
-CORS_ORIGIN=http://localhost:3000,https://listitt.com,https://www.listitt.com
-FRONTEND_ORIGIN=http://localhost:3000
+CORS_ORIGIN=http://localhost:5173,https://listitt.com,https://www.listitt.com
+FRONTEND_ORIGIN=http://localhost:5173
 MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
 ADMIN_UID=<firebase-user-uid-for-seeded-categories>
-FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"listit","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"...","client_id":"...","auth_uri":"...","token_uri":"...","auth_provider_x509_cert_url":"...","client_x509_cert_url":"..."}
-RESEND_API_KEY=<optional-resend-api-key-for-email-invites>
-INVITE_FROM_EMAIL=ListIt <noreply@example.com>
+FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"...","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"...","client_id":"...","auth_uri":"...","token_uri":"...","auth_provider_x509_cert_url":"...","client_x509_cert_url":"..."}
+RESEND_API_KEY=<optional-resend-api-key>
+INVITE_FROM_EMAIL=ListIt <invite@your-verified-domain.com>
 ```
 
 Notes:
 
-- `ADMIN_UID` is used only when seeding the default public categories so those categories have a real owner.
-- Runtime admin access is not controlled by `ADMIN_UID`. Runtime admin access uses Firebase custom claims.
-- `FIREBASE_SERVICE_ACCOUNT_KEY` must be a single-line JSON string.
-- Collaborator invitations use `RESEND_API_KEY` when configured. Without it, the backend logs the invite link for local development.
 - `CORS_ORIGIN` accepts a comma-separated list of allowed frontend origins.
+- `FRONTEND_ORIGIN` is used to build invitation links.
+- `ADMIN_UID` is only used when seeding default public categories.
+- Runtime admin access uses Firebase custom claims, not `ADMIN_UID`.
+- `FIREBASE_SERVICE_ACCOUNT_KEY` must be valid JSON. In hosted environments it is usually safest as a single-line JSON string.
+- `RESEND_API_KEY` is optional for local development. Without it, invitation and notification email sends are skipped/logged.
+- `INVITE_FROM_EMAIL` must use a sender/domain accepted by Resend for real email delivery.
 
 ### `frontend/.env`
 
@@ -106,57 +107,39 @@ REACT_APP_FIREBASE_MEASUREMENT_ID=<optional-analytics-id>
 
 Notes:
 
+- The frontend uses Vite but accepts `REACT_APP_` variables through `vite.config.js`.
+- `REACT_APP_API_BASE_URL` should point to the backend API. In production this should be the Render backend URL.
 - `REACT_APP_FIREBASE_MEASUREMENT_ID` is optional.
-- If you are not using Analytics, you can leave `REACT_APP_FIREBASE_MEASUREMENT_ID` blank.
 
-## Firebase setup
+## Firebase Setup
 
-### 1. Enable Google sign-in
+1. Enable Google sign-in in Firebase Authentication.
+2. Create a Firebase web app and copy its config into `frontend/.env`.
+3. Generate a service account private key and provide it as `FIREBASE_SERVICE_ACCOUNT_KEY` in `backend/.env`.
+4. Add your local and production domains to Firebase Authentication authorized domains.
 
-In Firebase Authentication:
-
-- Open your project
-- Go to Authentication
-- Enable Google as a sign-in provider
-
-### 2. Create a web app
-
-In Firebase project settings:
-
-- Create a web app if you do not already have one
-- Copy the Firebase web config values into `frontend/.env`
-
-### 3. Create a service account
-
-In Firebase project settings:
-
-- Go to Service accounts
-- Generate a private key
-- Convert that JSON into a single line
-- Paste it into `backend/.env` as `FIREBASE_SERVICE_ACCOUNT_KEY`
-
-Example:
-
-```bash
-cat serviceAccountKey.json | jq -c .
-```
-
-### 4. Grant admin access
-
-Runtime admin behavior uses Firebase custom claims. To make a user an admin, set a claim like this from a trusted admin script or Node console that uses Firebase Admin:
+To grant runtime admin access, set a Firebase custom claim from a trusted script or Node console:
 
 ```js
 await admin.auth().setCustomUserClaims('<uid>', { admin: true });
 ```
 
-After that, the user must sign out and sign back in to refresh their token.
+The user must sign out and back in to refresh their token.
 
-Admin access currently affects:
+## Email Setup
 
-- category deletion
-- admin category management UI
-- admin deletion of public lists
-- admin deletion of items where allowed by backend rules
+ListIt uses Resend for:
+
+- collaboration invitation emails
+- pending invitation cancellation emails
+- collaborator removal emails
+
+For real delivery:
+
+1. Verify your sending domain in Resend.
+2. Set `RESEND_API_KEY` in the backend environment.
+3. Set `INVITE_FROM_EMAIL`, for example `ListIt <invite@listitt.com>`.
+4. Set `FRONTEND_ORIGIN` to the deployed frontend URL so invitation links point to the right site.
 
 ## Installation
 
@@ -170,7 +153,7 @@ cd ../frontend
 npm install
 ```
 
-## Running locally
+## Running Locally
 
 Start the backend:
 
@@ -188,24 +171,24 @@ npm start
 
 Open:
 
-- Frontend: `http://localhost:3000`
+- Frontend: `http://localhost:5173`
 - Backend health check: `http://localhost:4000`
 
-On first backend startup, the app seeds a default set of public categories.
+On backend startup, the app seeds the default public categories when needed.
 
-## Development commands
+## Development Commands
 
-### Frontend
+Frontend:
 
 ```bash
 cd frontend
 npm start
-npm run build
 npm run lint
-npm test -- --watchAll=false
+npm test
+npm run build
 ```
 
-### Backend
+Backend:
 
 ```bash
 cd backend
@@ -214,36 +197,56 @@ npm start
 npm test
 ```
 
-## Authorization model
+## Routing Behavior
+
+- `/` shows the landing page for logged-out users.
+- Logged-in users who directly open `/` are redirected to `/home`.
+- Clicking the ListIt logo/title intentionally opens the landing page.
+- `/home` shows the signed-in user's owned, collaborating, pinned, and liked lists.
+- `/discover` shows public lists. For signed-in users, Discover excludes lists they already own, collaborate on, pinned, or liked.
+- Logged-out users can browse public lists on `/discover`.
+- `/about`, `/help`, and `/contact` are footer info pages.
+- `/invites/:token` handles invitation acceptance.
+
+## Authorization Model
 
 ### Lists
 
-- Public lists are visible to everyone
-- Private lists are visible only to the owner and collaborators
-- Owners can update their own lists
-- Owners can invite and remove collaborators
-- Owners can delete their own list only when no one else has added items
-- Admins can delete public lists
+- Public lists are visible to everyone.
+- Private lists are visible only to the owner and collaborators.
+- Owners can update list metadata and public/private status.
+- Owners and `Edit All` collaborators can invite collaborators, cancel pending invitations, update collaborator permissions, and remove other collaborators.
+- Any collaborator can remove themselves from a list.
+- Owners cannot be removed as collaborators.
+- Owners can delete their own list only when no one else has added items.
+- Admins can delete public lists.
+
+### Collaborator Permissions
+
+- `Read Only`: can view and track personal completion.
+- `Edit`: includes read access and item add/remove capability.
+- `Edit All`: includes read access, item add/remove capability, item metadata edits, and collaborator management.
+
+Collaborator modal changes are staged locally. Permission changes, removals, self-leave, pending invitation cancellation, and new invitations apply only after clicking `Done`.
 
 ### Items
 
-- Public-list items are readable by anyone who can view the list
-- Private-list items are readable only by allowed users
-- Only the owner or collaborators of a list can add items
-- Only the owner or collaborators of a list can toggle item completion
-- Non-admin users can delete only items they created
-- Admins can delete items through the backend admin path
+- Users who can view a list can read its items.
+- Owners and collaborators can toggle their own item completion.
+- Owners, `Edit`, and `Edit All` collaborators can add/remove items.
+- Owners and `Edit All` collaborators can edit item text/sub-category metadata.
+- Item completion is stored per user in `doneBy`.
 
 ### Categories
 
-- Public categories are readable without authentication
-- Authenticated users can create categories
-- Owners and admins can rename categories
-- Only admins can delete categories
+- Public categories are readable without authentication.
+- Authenticated users can create categories.
+- Owners and admins can rename categories.
+- Only admins can delete categories.
 
-## API overview
+## API Overview
 
-All protected routes expect:
+Protected routes expect:
 
 ```text
 Authorization: Bearer <firebase-id-token>
@@ -266,9 +269,13 @@ Authorization: Bearer <firebase-id-token>
 - `POST /lists`
 - `PUT /lists/:id`
 - `DELETE /lists/:id`
-- `POST /lists/:id/collaborators`
-- `DELETE /lists/:id/collaborators/:collabUid`
 - `POST /lists/:id/invitations`
+- `DELETE /lists/:id/invitations/:invitationId`
+- `POST /lists/:id/collaborators`
+- `PUT /lists/:id/collaborators/:collabUid`
+- `DELETE /lists/:id/collaborators/:collabUid`
+- `PUT /lists/:id/reaction`
+- `POST /lists/:id/duplicate`
 
 ### Invitations
 
@@ -280,6 +287,7 @@ Authorization: Bearer <firebase-id-token>
 - `GET /items/:listId`
 - `POST /items`
 - `PUT /items/:id`
+- `PATCH /items/:id`
 - `DELETE /items/:id`
 
 ### Preferences
@@ -287,47 +295,64 @@ Authorization: Bearer <firebase-id-token>
 - `GET /preferences`
 - `PUT /preferences`
 
-## Key frontend files
+## Key Frontend Files
 
-- `frontend/src/app.js`: app shell
-- `frontend/src/contexts/AuthContext.js`: auth state, login/logout, admin claim handling
-- `frontend/src/components/ListView.js`: list fetching, filtering, and visibility
-- `frontend/src/components/ListDetail.js`: list-level orchestration for item and collaborator actions
-- `frontend/src/services/`: frontend API wrappers by domain
+- `frontend/src/app.jsx`: manual SPA routing and app shell.
+- `frontend/src/api.js`: Axios instance with Firebase auth token injection.
+- `frontend/src/config/env.js`: frontend Firebase and API environment values.
+- `frontend/src/contexts/AuthContext.jsx`: auth state, login/logout, admin claim handling.
+- `frontend/src/components/ListView.jsx`: list loading, Home/Discover filtering, pinning, and preferences.
+- `frontend/src/components/ListDetail.jsx`: list-level item, reaction, duplicate, edit, and collaborator orchestration.
+- `frontend/src/components/list-detail/CollaboratorPanel.jsx`: staged collaborator and invitation UI.
+- `frontend/src/services/`: small frontend API wrappers by domain.
 
-## Key backend files
+## Key Backend Files
 
-- `backend/src/index.js`: app boot, Mongo connection, Firebase Admin init, category seeding
-- `backend/src/middlewares/auth.js`: Firebase token verification
-- `backend/src/routes/lists.js`: list endpoints
-- `backend/src/routes/items.js`: item endpoints and per-user completion handling
-- `backend/src/routes/categories.js`: category endpoints
-- `backend/src/routes/preferences.js`: saved user preferences
-- `backend/src/services/listService.js`: shared list-domain backend helpers
+- `backend/src/index.js`: app boot, Mongo connection, Firebase Admin init, category seeding.
+- `backend/src/app.js`: Express app, CORS, route registration.
+- `backend/src/middlewares/auth.js`: Firebase token verification.
+- `backend/src/routes/lists.js`: list, collaborator, invitation, reaction, and duplicate endpoints.
+- `backend/src/routes/items.js`: item endpoints and per-user completion handling.
+- `backend/src/routes/invitations.js`: invitation lookup and accept flow.
+- `backend/src/routes/preferences.js`: saved user list preferences.
+- `backend/src/services/listService.js`: list enrichment, user display data, pending invitations, and ranking stats.
+- `backend/src/services/emailService.js`: Resend email helpers.
 
-## Current test coverage
+## Current Test Coverage
 
-The current automated tests focus on core project rules rather than full UI coverage.
-
-### Frontend tests cover
+Frontend tests cover:
 
 - admin claim interpretation
 - visible-list filtering
 
-### Backend tests cover
+Backend tests cover:
 
-- admin role interpretation
+- item access rules
+- collaborator removal and self-leave permissions
+- list deletion restrictions
+- duplicate-list behavior
+- reaction support for legacy collaborators
 - visible-list query construction
-- owner-only enforcement helpers
+- admin role interpretation
 
-## Known limitations
+## Deployment Notes
+
+Frontend:
+
+- Deploy `frontend/` to Vercel.
+- `frontend/vercel.json` rewrites all paths to `index.html` so direct links like `/home`, `/discover`, and `/invites/:token` work.
+- Set `REACT_APP_API_BASE_URL` to the deployed backend URL.
+- Add `listitt.com` and `www.listitt.com` as Vercel domains if using the custom domain.
+
+Backend:
+
+- Deploy `backend/` to Render or another Node host.
+- Set backend environment variables in the host dashboard.
+- Include the frontend domains in `CORS_ORIGIN`.
+- Set `FRONTEND_ORIGIN` to the production frontend URL used in invitation links.
+
+## Known Limitations
 
 - The app is reactive within a session, but it is not real-time across multiple clients.
-- Category creation is case-insensitive, but category names are not normalized beyond trimming.
+- Routing is implemented manually in React rather than with `react-router`.
 - Firebase Analytics is optional and only initializes when supported by the browser environment.
-
-## Suggested next work
-
-- Add route-level integration tests for backend permissions
-- Add component tests for collaborator and item mutation flows
-- Consider extracting item-route access helpers into a shared backend access module
