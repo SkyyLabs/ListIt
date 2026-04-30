@@ -24,18 +24,16 @@ import {
   cancelCollaboratorInvitation,
   createCollaboratorInvitation,
   duplicateList,
+  fetchItems,
   removeCollaborator,
+  removeItem,
   removeList,
+  updateItem,
+  updateItemDone,
   updateCollaboratorPermissions,
   updateList,
   updateListReaction
-} from '../services/listService';
-import {
-  fetchItems,
-  removeItem,
-  updateItem,
-  updateItemDone
-} from '../services/itemService';
+} from '../api';
 
 export default function ListDetail({
   list,

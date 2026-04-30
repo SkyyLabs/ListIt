@@ -9,13 +9,13 @@ import {
   DEFAULT_SHOW_PINNED_ONLY
 } from '../config/constants';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchCategories } from '../services/categoryService';
-import { fetchLists } from '../services/listService';
-import { compareStrings } from '../utils/sorting';
 import {
+  fetchCategories,
+  fetchLists,
   fetchPreferences,
   updatePreferences
-} from '../services/preferenceService';
+} from '../api';
+import { compareStrings } from '../utils/sorting';
 
 export default function ListView({ user, viewMode = 'home' }) {
   const [lists, setLists] = useState([]);

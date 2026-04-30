@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createItem } from '../services/itemService';
+import { createItem } from '../api';
 import InlineError from './InlineError';
 
 export default function NewListItemsModal({
@@ -10,7 +10,6 @@ export default function NewListItemsModal({
   const [text, setText] = useState('');
   const [subCategory, setSubCategory] = useState('');
   const [addedItems, setAddedItems] = useState([]);
-  const [filtered, setFiltered] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -23,13 +22,11 @@ export default function NewListItemsModal({
     [subCategories]
   );
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     const query = subCategory.trim().toLowerCase();
-    setFiltered(
-      query
-        ? sortedSubCategories.filter(value => value.toLowerCase().includes(query))
-        : sortedSubCategories
-    );
+    return query
+      ? sortedSubCategories.filter(value => value.toLowerCase().includes(query))
+      : sortedSubCategories;
   }, [subCategory, sortedSubCategories]);
 
   useEffect(() => {

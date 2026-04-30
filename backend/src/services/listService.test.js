@@ -1,7 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  assertListOwner,
   buildVisibleListFilter
 } = require('./listService');
 
@@ -24,11 +23,4 @@ test('buildVisibleListFilter carries an optional category filter', () => {
     ],
     categoryId: 'cat-1'
   });
-});
-
-test('assertListOwner throws when a non-owner attempts an owner-only action', () => {
-  assert.throws(
-    () => assertListOwner({ ownerUid: 'owner-1' }, 'user-2'),
-    error => error.status === 403 && error.message === 'Forbidden'
-  );
 });

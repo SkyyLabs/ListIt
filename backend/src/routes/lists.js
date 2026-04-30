@@ -1,7 +1,9 @@
 // backend/src/routes/lists.js
 const crypto = require('node:crypto');
+const admin = require('firebase-admin');
 const express = require('express');
 const router  = express.Router();
+const Category = require('../models/Category');
 const List    = require('../models/List');
 const Item    = require('../models/Item');
 const ListInvitation = require('../models/ListInvitation');
@@ -9,18 +11,13 @@ const ListReaction = require('../models/ListReaction');
 const { authenticate, optionalAuth } = require('../middlewares/auth');
 const { asyncHandler, createHttpError } = require('../utils/http');
 const { hasAdminRole } = require('../utils/roles');
-const { COLLABORATOR_PERMISSIONS } = require('../config/constants');
 const {
-  assertListOwner,
+  COLLABORATOR_PERMISSIONS,
+  DEFAULT_CATEGORY_NAME
+} = require('../config/constants');
+const {
   buildVisibleListFilter,
-  countForeignItems,
-  createCollaboratorEntry,
-  deleteListWithItems,
-  enrichListsWithStats,
-  ensureStructuredCollaborators,
-  findOrCreateCategoryByName,
-  resolveCollaboratorUid,
-  resolveUserEmail
+  enrichListsWithStats
 } = require('../services/listService');
 const {
   buildInviteUrl,
@@ -38,6 +35,7 @@ const {
   canInviteCollaborators,
   canRemoveCollaborator,
   canUpdateCollaboratorPermissions,
+  createCollaboratorEntry,
   normalizeCollaborators,
   sanitizePermissions
 } = require('../utils/listPermissions');
@@ -58,6 +56,88 @@ async function sendNotificationSafely(sendEmail, payload, context) {
   } catch (err) {
     console.error(`Failed to send ${context} email`, err);
   }
+}
+
+function assertListOwner(list, uid) {
+  if (list.ownerUid !== uid) {
+    throw createHttpError(403, 'Forbidden');
+  }
+}
+
+async function findOrCreateCategoryByName(categoryName, ownerUid) {
+  const rawName = categoryName || DEFAULT_CATEGORY_NAME;
+  let category = await Category.findOne({
+    name: { $regex: `^${rawName}$`, $options: 'i' }
+  });
+
+  if (!category) {
+    category = new Category({
+      name: rawName,
+      ownerUid,
+      isPublic: true
+    });
+    await category.save();
+  }
+
+  return category;
+}
+
+async function resolveCollaboratorUid(email, uid) {
+  if (email) {
+    const userRecord = await admin.auth().getUserByEmail(email);
+    return userRecord.uid;
+  }
+
+  if (!uid) {
+    throw createHttpError(400, 'Must provide email or uid');
+  }
+
+  return uid;
+}
+
+async function resolveUserEmail(uid) {
+  if (!uid) {
+    return null;
+  }
+
+  try {
+    const userRecord = await admin.auth().getUser(uid);
+    return userRecord.email || null;
+  } catch (err) {
+    console.warn(`⚠️ Could not resolve email for uid ${uid}: ${err.message}`);
+    return null;
+  }
+}
+
+async function countForeignItems(list) {
+  return Item.countDocuments({
+    listId: list._id,
+    addedBy: { $ne: list.ownerUid }
+  });
+}
+
+async function deleteListWithItems(list) {
+  await Item.deleteMany({ listId: list._id });
+  await list.remove();
+}
+
+async function ensureStructuredCollaborators(list) {
+  const normalized = normalizeCollaborators(list.collaborators || []);
+  const changed =
+    normalized.length !== (list.collaborators || []).length ||
+    normalized.some((collaborator, index) => {
+      const current = list.collaborators?.[index];
+      return typeof current === 'string'
+        || current?.uid !== collaborator.uid
+        || JSON.stringify(current?.permissions || []) !== JSON.stringify(collaborator.permissions);
+    });
+
+  if (changed) {
+    list.collaborators = normalized;
+    await list.save();
+  }
+
+  return list;
 }
 
 /**

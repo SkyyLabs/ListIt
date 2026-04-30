@@ -6,10 +6,12 @@ const ListInvitation = require('../models/ListInvitation');
 const { authenticate } = require('../middlewares/auth');
 const { asyncHandler, createHttpError } = require('../utils/http');
 const {
-  createCollaboratorEntry,
   enrichListsWithStats
 } = require('../services/listService');
-const { normalizeCollaborators } = require('../utils/listPermissions');
+const {
+  createCollaboratorEntry,
+  normalizeCollaborators
+} = require('../utils/listPermissions');
 
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');

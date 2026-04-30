@@ -111,6 +111,15 @@ function canRemoveCollaborator(list, uid, targetUid) {
   );
 }
 
+function createCollaboratorEntry(uid, permissions = [COLLABORATOR_PERMISSIONS.READ]) {
+  return {
+    uid,
+    permissions: sanitizePermissions(
+      permissions.length ? permissions : [COLLABORATOR_PERMISSIONS.READ]
+    )
+  };
+}
+
 module.exports = {
   canAddRemoveItems,
   canEditAll,
@@ -119,6 +128,7 @@ module.exports = {
   canToggleProgress,
   canUpdateCollaboratorPermissions,
   canViewList,
+  createCollaboratorEntry,
   getCollaboratorEntry,
   hasPermission,
   isCollaborator,

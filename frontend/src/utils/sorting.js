@@ -4,10 +4,6 @@ export function compareStrings(a = '', b = '') {
   });
 }
 
-export function sortStrings(values = []) {
-  return [...values].sort(compareStrings);
-}
-
 export function uniqueSortedStrings(values = []) {
   return Array.from(new Set(values.filter(Boolean))).sort(compareStrings);
 }

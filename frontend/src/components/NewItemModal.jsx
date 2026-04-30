@@ -1,6 +1,6 @@
 // frontend/src/components/NewItemModal.js
-import React, { useState, useEffect, useRef } from 'react';
-import { createItem } from '../services/itemService';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { createItem } from '../api';
 import InlineError from './InlineError';
 
 export default function NewItemModal({
@@ -12,25 +12,19 @@ export default function NewItemModal({
 }) {
   const [text, setText]               = useState('');
   const [subCategory, setSubCategory] = useState('');
-  const [filtered, setFiltered]       = useState([]);
   const [showSug, setShowSug]         = useState(false);
   const [error, setError]             = useState('');
   const wrapperRef = useRef(null);
 
-  // Sort subCategories alphabetically
-  const sorted = [...subCategories].sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: 'base' })
-  );
-
-  // Update suggestions as user types
-  useEffect(() => {
-    const q = subCategory.trim().toLowerCase();
-    setFiltered(
-      q
-        ? sorted.filter(sc => sc.toLowerCase().includes(q))
-        : sorted
+  const filtered = useMemo(() => {
+    const sorted = [...subCategories].sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: 'base' })
     );
-  }, [subCategory, sorted]);
+    const q = subCategory.trim().toLowerCase();
+    return q
+      ? sorted.filter(sc => sc.toLowerCase().includes(q))
+      : sorted;
+  }, [subCategories, subCategory]);
 
   // Close suggestions on mousedown outside
   useEffect(() => {

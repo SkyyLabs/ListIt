@@ -1,7 +1,7 @@
 // frontend/src/components/NewListModal.js
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { DEFAULT_CATEGORY_NAME, DEFAULT_SHOW_PUBLIC } from '../config/constants';
-import { createList } from '../services/listService';
+import { createList } from '../api';
 import InlineError from './InlineError';
 
 export default function NewListModal({
@@ -12,25 +12,19 @@ export default function NewListModal({
   const [title, setTitle]               = useState('');
   const [categoryName, setCategoryName] = useState('');
   const [isPublic, setIsPublic]         = useState(DEFAULT_SHOW_PUBLIC);
-  const [filteredCats, setFilteredCats] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError]               = useState('');
   const wrapperRef = useRef(null);
 
-  // Sort categories alphabetically
-  const sortedCats = [...categories].sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-  );
-
-  // Filter as user types
-  useEffect(() => {
-    const q = categoryName.trim().toLowerCase();
-    setFilteredCats(
-      q
-        ? sortedCats.filter(cat => cat.name.toLowerCase().includes(q))
-        : sortedCats
+  const filteredCats = useMemo(() => {
+    const sortedCats = [...categories].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
     );
-  }, [categoryName, sortedCats]);
+    const q = categoryName.trim().toLowerCase();
+    return q
+      ? sortedCats.filter(cat => cat.name.toLowerCase().includes(q))
+      : sortedCats;
+  }, [categories, categoryName]);
 
   // Close suggestions on any mousedown outside the wrapper
   useEffect(() => {

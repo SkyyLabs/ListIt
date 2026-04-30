@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import InlineError from './InlineError';
-import { acceptInvitation, fetchInvitation } from '../services/invitationService';
+import { acceptInvitation, fetchInvitation } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function InvitationAcceptPage({ token }) {

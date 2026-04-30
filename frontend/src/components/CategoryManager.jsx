@@ -6,7 +6,7 @@ import {
   createCategory,
   removeCategory,
   renameCategory
-} from '../services/categoryService';
+} from '../api';
 
 export default function CategoryManager({ categories, setCategories, user }) {
   const { isAdmin } = useAuth();

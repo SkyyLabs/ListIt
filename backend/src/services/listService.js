@@ -1,17 +1,9 @@
 const admin = require('firebase-admin');
-const Category = require('../models/Category');
-const Item = require('../models/Item');
 const List = require('../models/List');
 const ListInvitation = require('../models/ListInvitation');
 const ListReaction = require('../models/ListReaction');
 const {
-  COLLABORATOR_PERMISSIONS,
-  DEFAULT_CATEGORY_NAME
-} = require('../config/constants');
-const { createHttpError } = require('../utils/http');
-const {
-  normalizeCollaborators,
-  sanitizePermissions
+  normalizeCollaborators
 } = require('../utils/listPermissions');
 
 function buildVisibleListFilter(uid, categoryId) {
@@ -126,115 +118,6 @@ async function enrichLists(docs) {
     }),
     pendingInvitations: pendingInvitationsByList[String(list._id)] || []
   }));
-}
-
-async function findOrCreateCategoryByName(categoryName, ownerUid) {
-  const rawName = categoryName || DEFAULT_CATEGORY_NAME;
-  let category = await Category.findOne({
-    name: { $regex: `^${rawName}$`, $options: 'i' }
-  });
-
-  if (!category) {
-    category = new Category({
-      name: rawName,
-      ownerUid,
-      isPublic: true
-    });
-    await category.save();
-  }
-
-  return category;
-}
-
-function assertListOwner(list, uid) {
-  if (list.ownerUid !== uid) {
-    throw createHttpError(403, 'Forbidden');
-  }
-}
-
-async function resolveCollaboratorUid(email, uid) {
-  if (email) {
-    const userRecord = await admin.auth().getUserByEmail(email);
-    return userRecord.uid;
-  }
-
-  if (!uid) {
-    throw createHttpError(400, 'Must provide email or uid');
-  }
-
-  return uid;
-}
-
-async function resolveUserEmail(uid) {
-  if (!uid) {
-    return null;
-  }
-
-  try {
-    const userRecord = await admin.auth().getUser(uid);
-    return userRecord.email || null;
-  } catch (err) {
-    console.warn(`⚠️ Could not resolve email for uid ${uid}: ${err.message}`);
-    return null;
-  }
-}
-
-async function countForeignItems(list) {
-  return Item.countDocuments({
-    listId: list._id,
-    addedBy: { $ne: list.ownerUid }
-  });
-}
-
-async function deleteListWithItems(list) {
-  await Item.deleteMany({ listId: list._id });
-  await list.remove();
-}
-
-async function addSubCategoryToCategory(categoryId, subCategory) {
-  if (!categoryId || !subCategory) {
-    return;
-  }
-
-  const category = await Category.findById(categoryId);
-  if (!category) {
-    return;
-  }
-
-  const exists = category.subCategories.some(
-    existingSubCategory =>
-      existingSubCategory.toLowerCase() === subCategory.toLowerCase()
-  );
-  if (!exists) {
-    category.subCategories.push(subCategory);
-    await category.save();
-  }
-}
-
-async function ensureStructuredCollaborators(list) {
-  const normalized = normalizeCollaborators(list.collaborators || []);
-  const changed =
-    normalized.length !== (list.collaborators || []).length ||
-    normalized.some((collaborator, index) => {
-      const current = list.collaborators?.[index];
-      return typeof current === 'string'
-        || current?.uid !== collaborator.uid
-        || JSON.stringify(current?.permissions || []) !== JSON.stringify(collaborator.permissions);
-    });
-
-  if (changed) {
-    list.collaborators = normalized;
-    await list.save();
-  }
-
-  return list;
-}
-
-function createCollaboratorEntry(uid, permissions = [COLLABORATOR_PERMISSIONS.READ]) {
-  return {
-    uid,
-    permissions: sanitizePermissions(permissions.length ? permissions : [COLLABORATOR_PERMISSIONS.READ])
-  };
 }
 
 async function getUserActivityMap(uids = []) {
@@ -353,19 +236,10 @@ async function enrichListsWithStats(docs, currentUserUid) {
 }
 
 module.exports = {
-  addSubCategoryToCategory,
-  assertListOwner,
   buildVisibleListFilter,
-  countForeignItems,
-  createCollaboratorEntry,
-  deleteListWithItems,
-  ensureStructuredCollaborators,
   enrichLists,
   enrichListsWithStats,
-  findOrCreateCategoryByName,
   getActivityWeight,
   getReactionSummaryMap,
-  getUserActivityMap,
-  resolveCollaboratorUid,
-  resolveUserEmail
+  getUserActivityMap
 };

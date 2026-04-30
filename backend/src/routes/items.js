@@ -3,13 +3,10 @@ const express       = require('express')
 const router        = express.Router()
 const Item          = require('../models/Item')
 const List          = require('../models/List')
-const Category      = require('../models/Category')       // ← make sure this is imported
+const Category      = require('../models/Category')
 const { authenticate, optionalAuth } = require('../middlewares/auth')
 const { asyncHandler, createHttpError } = require('../utils/http')
 const { hasAdminRole } = require('../utils/roles')
-const {
-  addSubCategoryToCategory
-} = require('../services/listService')
 const {
   optionalTrimmedString,
   requireBoolean,
@@ -29,6 +26,26 @@ async function getListOrThrow(listId) {
   }
 
   return list
+}
+
+async function addSubCategoryToCategory(categoryId, subCategory) {
+  if (!categoryId || !subCategory) {
+    return
+  }
+
+  const category = await Category.findById(categoryId)
+  if (!category) {
+    return
+  }
+
+  const exists = category.subCategories.some(
+    existingSubCategory =>
+      existingSubCategory.toLowerCase() === subCategory.toLowerCase()
+  )
+  if (!exists) {
+    category.subCategories.push(subCategory)
+    await category.save()
+  }
 }
 
 /**
