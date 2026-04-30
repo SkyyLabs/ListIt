@@ -21,6 +21,7 @@ import {
   uniqueSortedStrings
 } from '../utils/sorting';
 import {
+  cancelCollaboratorInvitation,
   createCollaboratorInvitation,
   duplicateList,
   removeCollaborator,
@@ -168,6 +169,7 @@ export default function ListDetail({
 
   const handleSaveCollaboratorChanges = async ({
     invitations = [],
+    canceledInvitationIds = [],
     permissionUpdates = [],
     removals = []
   }) => {
@@ -190,6 +192,13 @@ export default function ListDetail({
         update.permissions
       );
       nextCollaborators = updatedList.collaborators || nextCollaborators;
+    }
+
+    for (const invitationId of canceledInvitationIds) {
+      await cancelCollaboratorInvitation(listState._id, invitationId);
+      nextPendingInvitations = nextPendingInvitations.filter(
+        invitation => invitation._id !== invitationId
+      );
     }
 
     for (const invitationPayload of invitations) {

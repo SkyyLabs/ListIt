@@ -29,6 +29,10 @@ export async function createCollaboratorInvitation(listId, payload) {
   return res.data;
 }
 
+export async function cancelCollaboratorInvitation(listId, invitationId) {
+  await api.delete(`/lists/${listId}/invitations/${invitationId}`);
+}
+
 export async function updateCollaboratorPermissions(listId, uid, permissions) {
   const res = await api.put(`/lists/${listId}/collaborators/${uid}`, {
     permissions
