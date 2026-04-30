@@ -10,7 +10,10 @@ import {
 } from '../config/constants';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchCategories } from '../services/categoryService';
-import { fetchLists } from '../services/listService';
+import {
+  fetchLists,
+  updateListReaction
+} from '../services/listService';
 import { compareStrings } from '../utils/sorting';
 import {
   fetchPreferences,
@@ -29,13 +32,16 @@ export default function ListView({ user, viewMode = 'home' }) {
   const [pendingNewList, setPendingNewList] = useState(null);
   const [showCatManager, setShowCatManager] = useState(false);
   const [draggedPinnedId, setDraggedPinnedId] = useState(null);
+  const [notification, setNotification] = useState('');
   const isMountedRef = useRef(true);
   const preferenceRequestRef = useRef(0);
+  const notificationTimeoutRef = useRef(null);
   const { isAdmin } = useAuth();
 
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      window.clearTimeout(notificationTimeoutRef.current);
     };
   }, []);
 
@@ -131,6 +137,42 @@ export default function ListView({ user, viewMode = 'home' }) {
       }
       console.error(err);
     }
+  };
+
+  const applyListUpdate = (updatedList, options = {}) => {
+    setLists(prev => {
+      if (options.prepend) {
+        return [updatedList, ...prev];
+      }
+      return prev.map(existingList =>
+        existingList._id === updatedList._id
+          ? { ...existingList, ...updatedList }
+          : existingList
+      );
+    });
+  };
+
+  const showNotification = message => {
+    setNotification(message);
+    window.clearTimeout(notificationTimeoutRef.current);
+    notificationTimeoutRef.current = window.setTimeout(() => {
+      if (isMountedRef.current) {
+        setNotification('');
+      }
+    }, 2600);
+  };
+
+  const handleAddToHome = async listId => {
+    const updatedList = await updateListReaction(listId, 'like');
+    applyListUpdate(updatedList);
+    showNotification('List was added to Home');
+    return updatedList;
+  };
+
+  const handleRemoveFromHome = async listId => {
+    const updatedList = await updateListReaction(listId, null);
+    applyListUpdate(updatedList);
+    return updatedList;
   };
 
   const handleShowPinnedOnlyChange = e => {
@@ -331,8 +373,52 @@ export default function ListView({ user, viewMode = 'home' }) {
     });
   const regularLists = [...personalLists, ...publicLists];
 
+  const renderListCard = (list, pinned) => {
+    const owned = isOwned(list);
+    const collaborating = isCollaborating(list);
+    const liked = isLiked(list);
+    const likedOnlyHomeList = Boolean(
+      user &&
+      viewMode === 'home' &&
+      list.isPublic &&
+      liked &&
+      !owned &&
+      !collaborating &&
+      !pinned
+    );
+
+    return (
+      <ListDetail
+        key={list._id}
+        list={list}
+        canAddToHome={Boolean(user && viewMode === 'discover')}
+        canRemoveFromHome={likedOnlyHomeList}
+        isPinned={pinned}
+        itemSortMode={itemSortMode}
+        onAddToHome={() => handleAddToHome(list._id)}
+        onDragEnd={() => setDraggedPinnedId(null)}
+        onDragOver={pinned ? event => event.preventDefault() : () => {}}
+        onDragStart={pinned ? () => setDraggedPinnedId(list._id) : () => {}}
+        user={user}
+        onDelete={handleDelete}
+        onDrop={pinned ? () => handlePinnedDrop(list._id) : () => {}}
+        onItemSortModeChange={handleItemSortModeChange}
+        onListUpdate={applyListUpdate}
+        onRemoveFromHome={() => handleRemoveFromHome(list._id)}
+        onStartAddItem={handleStartAddItem}
+        onTogglePin={() => handleTogglePin(list._id)}
+      />
+    );
+  };
+
   return (
     <div className="mx-auto max-w-7xl">
+      {notification && (
+        <div className="fixed left-1/2 top-24 z-40 -translate-x-1/2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 shadow-lg">
+          {notification}
+        </div>
+      )}
+
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="chip mb-3">{viewMode === 'discover' ? 'Discover' : 'Workspace'}</div>
@@ -415,33 +501,7 @@ export default function ListView({ user, viewMode = 'home' }) {
           </div>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {pinnedLists.map(list => (
-              <ListDetail
-                key={list._id}
-                list={list}
-                isPinned
-                itemSortMode={itemSortMode}
-                onDragEnd={() => setDraggedPinnedId(null)}
-                onDragOver={event => event.preventDefault()}
-                onDragStart={() => setDraggedPinnedId(list._id)}
-                user={user}
-                onDelete={handleDelete}
-                onDrop={() => handlePinnedDrop(list._id)}
-                onItemSortModeChange={handleItemSortModeChange}
-                onListUpdate={(updatedList, options = {}) => {
-                  setLists(prev => {
-                    if (options.prepend) {
-                      return [updatedList, ...prev];
-                    }
-                    return prev.map(existingList =>
-                      existingList._id === updatedList._id
-                        ? { ...existingList, ...updatedList }
-                        : existingList
-                    );
-                  });
-                }}
-                onStartAddItem={handleStartAddItem}
-                onTogglePin={() => handleTogglePin(list._id)}
-              />
+              renderListCard(list, true)
             ))}
           </div>
         </section>
@@ -453,33 +513,7 @@ export default function ListView({ user, viewMode = 'home' }) {
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {regularLists.map(list => (
-          <ListDetail
-            key={list._id}
-            list={list}
-            isPinned={false}
-            itemSortMode={itemSortMode}
-            onDragEnd={() => setDraggedPinnedId(null)}
-            onDragOver={() => {}}
-            onDragStart={() => {}}
-            user={user}
-            onDelete={handleDelete}
-            onDrop={() => {}}
-            onItemSortModeChange={handleItemSortModeChange}
-            onListUpdate={(updatedList, options = {}) => {
-              setLists(prev => {
-                if (options.prepend) {
-                  return [updatedList, ...prev];
-                }
-                return prev.map(existingList =>
-                  existingList._id === updatedList._id
-                    ? { ...existingList, ...updatedList }
-                    : existingList
-                );
-              });
-            }}
-            onStartAddItem={handleStartAddItem}
-            onTogglePin={() => handleTogglePin(list._id)}
-          />
+          renderListCard(list, false)
         ))}
       </div>
 

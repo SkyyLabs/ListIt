@@ -37,11 +37,32 @@ import {
   updateItemDone
 } from '../services/itemService';
 
+function ThumbIcon({ active, direction = 'up' }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={`h-4 w-4 ${direction === 'down' ? 'rotate-180' : ''}`}
+      fill={active ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+    >
+      <path d="M7 21H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+      <path d="M7 10l4.4-7.1A2 2 0 0 1 15 4v5h4.2a2 2 0 0 1 1.9 2.5l-1.6 6A4 4 0 0 1 15.6 20H7V10z" />
+    </svg>
+  );
+}
+
 export default function ListDetail({
   list,
   user,
+  canAddToHome = false,
+  canRemoveFromHome = false,
   isPinned,
   itemSortMode,
+  onAddToHome,
   onDelete,
   onDragEnd,
   onDragOver,
@@ -49,6 +70,7 @@ export default function ListDetail({
   onDrop,
   onItemSortModeChange,
   onListUpdate,
+  onRemoveFromHome,
   onTogglePin
 }) {
   // Live list & items state
@@ -70,6 +92,7 @@ export default function ListDetail({
   const [showNewItem, setShowNewItem]             = useState(false);
   const [error, setError]                         = useState('');
   const [dragging, setDragging]                   = useState(false);
+  const [homeActionSaving, setHomeActionSaving]   = useState(false);
 
   // Edit mode & saving
   const [editMode, setEditMode] = useState(false);
@@ -403,6 +426,46 @@ export default function ListDetail({
     }
   };
 
+  const handleAddToHome = async () => {
+    setHomeActionSaving(true);
+    try {
+      const updatedList = await onAddToHome?.();
+      if (!isMountedRef.current) return;
+      if (updatedList) {
+        setListState(currentListState => ({ ...currentListState, ...updatedList }));
+      }
+      setError('');
+    } catch (err) {
+      if (isMountedRef.current) {
+        setError(err.response?.data || err.message);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setHomeActionSaving(false);
+      }
+    }
+  };
+
+  const handleRemoveFromHome = async () => {
+    setHomeActionSaving(true);
+    try {
+      const updatedList = await onRemoveFromHome?.();
+      if (!isMountedRef.current) return;
+      if (updatedList) {
+        setListState(currentListState => ({ ...currentListState, ...updatedList }));
+      }
+      setError('');
+    } catch (err) {
+      if (isMountedRef.current) {
+        setError(err.response?.data || err.message);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setHomeActionSaving(false);
+      }
+    }
+  };
+
   const handleDuplicate = async () => {
     try {
       const duplicatedList = await duplicateList(listState._id);
@@ -560,6 +623,17 @@ export default function ListDetail({
 
       <div className="mt-auto flex items-end justify-between gap-3 pt-4">
         <div className="flex items-center gap-2">
+          {canAddToHome && !editMode && (
+            <button
+              onClick={handleAddToHome}
+              disabled={homeActionSaving}
+              aria-label="Add list to Home"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-lg font-semibold leading-none text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-100 disabled:opacity-50"
+              title="Add to Home"
+            >
+              +
+            </button>
+          )}
           {user && !editMode && (
             <button
               onClick={onTogglePin}
@@ -581,6 +655,15 @@ export default function ListDetail({
               Duplicate
             </button>
           )}
+          {canRemoveFromHome && !editMode && (
+            <button
+              onClick={handleRemoveFromHome}
+              disabled={homeActionSaving}
+              className="rounded-full border border-rose-100 bg-white/75 px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-50 disabled:opacity-50"
+            >
+              Remove from Home
+            </button>
+          )}
         </div>
         {editMode ? (
           canDelete && (
@@ -597,17 +680,27 @@ export default function ListDetail({
               onClick={() => handleReactionChange('like')}
               disabled={!user}
               aria-label="Thumbs up"
-              className={`rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${listState.currentUserReaction === 'like' ? 'border-emerald-500 bg-emerald-100 text-emerald-800' : 'border-white bg-white/75 text-slate-700'}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${
+                listState.currentUserReaction === 'like'
+                  ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
+                  : 'border-emerald-200 bg-white/75 text-emerald-700 hover:bg-emerald-50'
+              }`}
             >
-              Up {listState.likesCount || 0}
+              <ThumbIcon active={listState.currentUserReaction === 'like'} />
+              <span>{listState.likesCount || 0}</span>
             </button>
             <button
               onClick={() => handleReactionChange('dislike')}
               disabled={!user}
               aria-label="Thumbs down"
-              className={`rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${listState.currentUserReaction === 'dislike' ? 'border-rose-500 bg-rose-100 text-rose-800' : 'border-white bg-white/75 text-slate-700'}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${
+                listState.currentUserReaction === 'dislike'
+                  ? 'border-rose-500 bg-rose-100 text-rose-800'
+                  : 'border-rose-200 bg-white/75 text-rose-700 hover:bg-rose-50'
+              }`}
             >
-              Down {listState.dislikesCount || 0}
+              <ThumbIcon active={listState.currentUserReaction === 'dislike'} direction="down" />
+              <span>{listState.dislikesCount || 0}</span>
             </button>
           </div>
         )}
