@@ -8,4 +8,5 @@ export const firebaseConfig = {
   measurementId: import.meta.env.REACT_APP_FIREBASE_MEASUREMENT_ID
 };
 
-export const apiBaseUrl = import.meta.env.REACT_APP_API_BASE_URL;
+export const apiBaseUrl = import.meta.env.REACT_APP_API_BASE_URL
+  || (import.meta.env.DEV ? 'http://localhost:4000' : undefined);

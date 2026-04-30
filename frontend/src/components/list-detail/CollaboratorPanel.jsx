@@ -48,6 +48,14 @@ function accessLevelToPermissions(accessLevel) {
   return accessLevelMap[accessLevel]?.permissions || accessLevelMap.read.permissions;
 }
 
+function getCollaboratorErrorMessage(err) {
+  const responseData = err.response?.data;
+  if (typeof responseData === 'string' && responseData.trim().startsWith('<!DOCTYPE html>')) {
+    return 'The collaborator update route is not available on the running backend. Restart the backend server and try again.';
+  }
+  return responseData || err.message || 'Failed to save collaborator changes.';
+}
+
 export default function CollaboratorPanel({
   collaborators,
   pendingInvitations = [],
@@ -191,7 +199,7 @@ export default function CollaboratorPanel({
       });
       toggleCollaborators();
     } catch (err) {
-      setLocalError(err.response?.data || err.message || 'Failed to save collaborator changes.');
+      setLocalError(getCollaboratorErrorMessage(err));
     } finally {
       setSaving(false);
     }
