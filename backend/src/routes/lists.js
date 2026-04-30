@@ -19,10 +19,13 @@ const {
   enrichListsWithStats,
   ensureStructuredCollaborators,
   findOrCreateCategoryByName,
-  resolveCollaboratorUid
+  resolveCollaboratorUid,
+  resolveUserEmail
 } = require('../services/listService');
 const {
   buildInviteUrl,
+  sendCollaboratorRemovedEmail,
+  sendInvitationCanceledEmail,
   sendInvitationEmail
 } = require('../services/emailService');
 const {
@@ -47,6 +50,14 @@ function normalizeEmail(email) {
 
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+async function sendNotificationSafely(sendEmail, payload, context) {
+  try {
+    await sendEmail(payload);
+  } catch (err) {
+    console.error(`Failed to send ${context} email`, err);
+  }
 }
 
 /**
@@ -250,6 +261,36 @@ router.post('/:id/invitations', asyncHandler(async (req, res) => {
   });
 }));
 
+router.delete('/:id/invitations/:invitationId', asyncHandler(async (req, res) => {
+  const list = await List.findById(req.params.id);
+  if (!list) throw createHttpError(404, 'List not found');
+
+  await ensureStructuredCollaborators(list);
+  if (!canInviteCollaborators(list, req.user.uid)) {
+    throw createHttpError(403, 'Forbidden');
+  }
+
+  const invitation = await ListInvitation.findOneAndDelete({
+    _id: req.params.invitationId,
+    listId: list._id,
+    status: 'pending'
+  });
+  if (!invitation) {
+    throw createHttpError(404, 'Invitation not found');
+  }
+
+  await sendNotificationSafely(
+    sendInvitationCanceledEmail,
+    {
+      email: invitation.email,
+      listTitle: list.title
+    },
+    'invitation cancellation'
+  );
+
+  return res.sendStatus(204);
+}));
+
 router.put('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => {
   const list = await List.findById(req.params.id);
   if (!list) throw createHttpError(404, 'List not found');
@@ -290,10 +331,21 @@ router.delete('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => 
     throw createHttpError(400, 'Owner cannot be removed as a collaborator');
   }
 
+  const removedCollaboratorEmail = await resolveUserEmail(req.params.collabUid);
   list.collaborators = list.collaborators.filter(
     collaborator => collaborator.uid !== req.params.collabUid
   );
   await list.save();
+  if (removedCollaboratorEmail) {
+    await sendNotificationSafely(
+      sendCollaboratorRemovedEmail,
+      {
+        email: removedCollaboratorEmail,
+        listTitle: list.title
+      },
+      'collaborator removal'
+    );
+  }
   return res.json(list);
 }));
 

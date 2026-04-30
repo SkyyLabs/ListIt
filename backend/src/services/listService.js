@@ -165,6 +165,20 @@ async function resolveCollaboratorUid(email, uid) {
   return uid;
 }
 
+async function resolveUserEmail(uid) {
+  if (!uid) {
+    return null;
+  }
+
+  try {
+    const userRecord = await admin.auth().getUser(uid);
+    return userRecord.email || null;
+  } catch (err) {
+    console.warn(`⚠️ Could not resolve email for uid ${uid}: ${err.message}`);
+    return null;
+  }
+}
+
 async function countForeignItems(list) {
   return Item.countDocuments({
     listId: list._id,
@@ -352,5 +366,6 @@ module.exports = {
   getActivityWeight,
   getReactionSummaryMap,
   getUserActivityMap,
-  resolveCollaboratorUid
+  resolveCollaboratorUid,
+  resolveUserEmail
 };
