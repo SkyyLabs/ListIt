@@ -21,6 +21,7 @@ function App() {
   const { user, login, logout } = useAuth();
   const inviteMatch = window.location.pathname.match(/^\/invites\/([^/]+)$/);
   const [page, setPage] = useState(() => getPageFromPath(window.location.pathname));
+  const [allowLandingForSignedIn, setAllowLandingForSignedIn] = useState(false);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -31,15 +32,16 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (user && page === 'landing' && !inviteMatch) {
+    if (user && page === 'landing' && !inviteMatch && !allowLandingForSignedIn) {
       window.history.replaceState({}, '', '/home');
       setPage('home');
     }
-  }, [inviteMatch, page, user]);
+  }, [allowLandingForSignedIn, inviteMatch, page, user]);
 
-  const navigate = nextPage => {
+  const navigate = (nextPage, options = {}) => {
     const path = nextPage === 'landing' ? '/' : `/${nextPage}`;
     window.history.pushState({}, '', path);
+    setAllowLandingForSignedIn(Boolean(options.allowSignedInLanding && nextPage === 'landing'));
     setPage(nextPage);
   };
 
@@ -76,6 +78,7 @@ function App() {
         onLogin={login}
         onLogout={handleLogout}
         onNavigate={navigate}
+        onNavigateLanding={() => navigate('landing', { allowSignedInLanding: true })}
       />
       <main className={`flex-1 overflow-auto ${user || inviteMatch ? 'px-4 py-6 sm:px-6 lg:px-8' : ''}`}>
         {renderContent()}

@@ -15,7 +15,6 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { normalizeCollaborator } from '../utils/listPermissions';
 import {
-  compareStrings,
   getUserDisplayLabel,
   sortItems,
   sortUsers,
@@ -67,10 +66,6 @@ export default function ListDetail({
 
   // UI toggles
   const [showCollaborators, setShowCollaborators] = useState(false);
-  const [inviteEmail, setInviteEmail]             = useState('');
-  const [invitePermissions, setInvitePermissions] = useState([
-    COLLABORATOR_PERMISSIONS.READ
-  ]);
   const [showNewItem, setShowNewItem]             = useState(false);
   const [error, setError]                         = useState('');
   const [dragging, setDragging]                   = useState(false);
@@ -171,120 +166,57 @@ export default function ListDetail({
     setDisplayItems(sortItems(arr, itemSortMode));
   }, [allItems, draftItems, editMode, filters, itemSortMode, itemsToRemove]);
 
-  // Invite collaborator
-  const handleInvite = async e => {
-    e.preventDefault();
-    if (!inviteEmail.trim()) {
-      setError('Enter collaborator email.');
-      return;
-    }
-    try {
-      const invitation = await createCollaboratorInvitation(listState._id, {
-        email: inviteEmail.trim(),
-        permissions: invitePermissions
-      });
-      if (!isMountedRef.current) return;
-      setListState(s => ({
-        ...s,
-        pendingInvitations: [
-          invitation,
-          ...(s.pendingInvitations || []).filter(
-            existingInvitation => existingInvitation.email !== invitation.email
-          )
-        ]
-      }));
-      onListUpdate?.({
-        ...listState,
-        pendingInvitations: [
-          invitation,
-          ...(listState.pendingInvitations || []).filter(
-            existingInvitation => existingInvitation.email !== invitation.email
-          )
-        ]
-      });
-      setInviteEmail('');
-      setInvitePermissions([COLLABORATOR_PERMISSIONS.READ]);
-      setError('');
-    } catch (err) {
-      setError(err.response?.data || err.message);
-    }
-  };
+  const handleSaveCollaboratorChanges = async ({
+    invitations = [],
+    permissionUpdates = [],
+    removals = []
+  }) => {
+    const removedUidSet = new Set(removals);
+    let nextCollaborators = listState.collaborators || [];
+    let nextPendingInvitations = listState.pendingInvitations || [];
 
-  // Remove collaborator
-  const handleRemoveCollaborator = async uid => {
-    try {
+    for (const uid of removals) {
       const updatedList = await removeCollaborator(listState._id, uid);
-      if (!isMountedRef.current) return;
-      setListState(s => ({
-        ...s,
-        collaborators: updatedList.collaborators || s.collaborators
-      }));
-      onListUpdate?.(updatedList);
-      setError('');
-    } catch (err) {
-      console.error(err);
-      setError(err.response?.data || err.message);
-    }
-  };
-
-  const handleInvitePermissionToggle = (permission, checked) => {
-    if (permission === COLLABORATOR_PERMISSIONS.READ) {
-      return;
+      nextCollaborators = updatedList.collaborators || nextCollaborators;
     }
 
-    setInvitePermissions(currentPermissions => {
-      const withoutRead = currentPermissions.filter(
-        currentPermission => currentPermission !== COLLABORATOR_PERMISSIONS.READ
-      );
-      const nextPermissions = checked
-        ? [...withoutRead, permission]
-        : withoutRead.filter(currentPermission => currentPermission !== permission);
-      return [
-        COLLABORATOR_PERMISSIONS.READ,
-        ...nextPermissions.sort(compareStrings)
-      ];
-    });
-  };
-
-  const handlePermissionChange = async (uid, permission, checked) => {
-    if (permission === COLLABORATOR_PERMISSIONS.READ) {
-      return;
-    }
-
-    const collaborator = invited.find(entry => entry.uid === uid);
-    if (!collaborator) {
-      return;
-    }
-
-    const nextPermissions = [
-      COLLABORATOR_PERMISSIONS.READ,
-      ...(checked
-        ? [...(collaborator.permissions || []), permission]
-        : (collaborator.permissions || []).filter(
-          currentPermission =>
-            currentPermission !== permission
-            && currentPermission !== COLLABORATOR_PERMISSIONS.READ
-        ))
-    ].filter((currentPermission, index, permissions) =>
-      permissions.indexOf(currentPermission) === index
-    );
-
-    try {
+    for (const update of permissionUpdates) {
+      if (removedUidSet.has(update.uid)) {
+        continue;
+      }
       const updatedList = await updateCollaboratorPermissions(
         listState._id,
-        uid,
-        nextPermissions
+        update.uid,
+        update.permissions
       );
-      if (!isMountedRef.current) return;
-      setListState(s => ({
-        ...s,
-        collaborators: updatedList.collaborators || s.collaborators
-      }));
-      onListUpdate?.(updatedList);
-      setError('');
-    } catch (err) {
-      setError(err.response?.data || err.message);
+      nextCollaborators = updatedList.collaborators || nextCollaborators;
     }
+
+    for (const invitationPayload of invitations) {
+      const invitation = await createCollaboratorInvitation(listState._id, {
+        email: invitationPayload.email,
+        permissions: invitationPayload.permissions
+      });
+      nextPendingInvitations = [
+        invitation,
+        ...nextPendingInvitations.filter(
+          existingInvitation => existingInvitation.email !== invitation.email
+        )
+      ];
+    }
+
+    if (!isMountedRef.current) {
+      return;
+    }
+
+    const updatedListState = {
+      ...listState,
+      collaborators: nextCollaborators,
+      pendingInvitations: nextPendingInvitations
+    };
+    setListState(updatedListState);
+    onListUpdate?.(updatedListState);
+    setError('');
   };
 
   // Edit mode is intentionally draft-like: we snapshot the current list/items
@@ -608,14 +540,7 @@ export default function ListDetail({
             canInvite={canInvite}
             canManagePermissions={canManagePermissions}
             canRemoveCollaborator={canRemoveCollaborator}
-            disabled={false}
-            inviteEmail={inviteEmail}
-            invitePermissions={invitePermissions}
-            onInvite={handleInvite}
-            onInviteEmailChange={setInviteEmail}
-            onInvitePermissionToggle={handleInvitePermissionToggle}
-            onPermissionChange={handlePermissionChange}
-            onRemoveCollaborator={handleRemoveCollaborator}
+            onSaveCollaboratorChanges={handleSaveCollaboratorChanges}
             ownerUid={ownerUid}
             showCollaborators={showCollaborators}
             toggleCollaborators={() => setShowCollaborators(value => !value)}
