@@ -69,6 +69,7 @@ export default function ListDetail({
   onDragStart,
   onDrop,
   onItemSortModeChange,
+  onListAddedToHome,
   onListUpdate,
   onRemoveFromHome,
   onTogglePin
@@ -411,6 +412,7 @@ export default function ListDetail({
   };
 
   const handleReactionChange = async nextReaction => {
+    const previousReaction = listState.currentUserReaction;
     const normalizedReaction = listState.currentUserReaction === nextReaction
       ? null
       : nextReaction;
@@ -420,6 +422,9 @@ export default function ListDetail({
       if (!isMountedRef.current) return;
       setListState(currentListState => ({ ...currentListState, ...updatedList }));
       onListUpdate?.(updatedList);
+      if (nextReaction === 'like' && previousReaction !== 'like') {
+        onListAddedToHome?.();
+      }
       setError('');
     } catch (err) {
       setError(err.response?.data || err.message);
@@ -516,6 +521,16 @@ export default function ListDetail({
             <span key={index} className="h-0.5 w-0.5 rounded-full bg-current" />
           ))}
         </div>
+      )}
+
+      {canRemoveFromHome && !editMode && (
+        <button
+          onClick={handleRemoveFromHome}
+          disabled={homeActionSaving}
+          className="absolute right-5 top-5 z-10 rounded-full border border-rose-100 bg-white/85 px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-50 disabled:opacity-50"
+        >
+          Remove
+        </button>
       )}
 
       <InlineError message={error} className="mb-4" />
@@ -653,15 +668,6 @@ export default function ListDetail({
               className="rounded-full border border-white bg-white/75 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
             >
               Duplicate
-            </button>
-          )}
-          {canRemoveFromHome && !editMode && (
-            <button
-              onClick={handleRemoveFromHome}
-              disabled={homeActionSaving}
-              className="rounded-full border border-rose-100 bg-white/75 px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-50 disabled:opacity-50"
-            >
-              Remove from Home
             </button>
           )}
         </div>

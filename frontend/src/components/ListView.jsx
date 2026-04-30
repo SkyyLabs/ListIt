@@ -403,6 +403,9 @@ export default function ListView({ user, viewMode = 'home' }) {
         onDelete={handleDelete}
         onDrop={pinned ? () => handlePinnedDrop(list._id) : () => {}}
         onItemSortModeChange={handleItemSortModeChange}
+        onListAddedToHome={viewMode === 'discover'
+          ? () => showNotification('List was added to Home')
+          : undefined}
         onListUpdate={applyListUpdate}
         onRemoveFromHome={() => handleRemoveFromHome(list._id)}
         onStartAddItem={handleStartAddItem}
