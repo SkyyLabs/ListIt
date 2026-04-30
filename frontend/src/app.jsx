@@ -22,6 +22,7 @@ function App() {
   const inviteMatch = window.location.pathname.match(/^\/invites\/([^/]+)$/);
   const [page, setPage] = useState(() => getPageFromPath(window.location.pathname));
   const [allowLandingForSignedIn, setAllowLandingForSignedIn] = useState(false);
+  const mainOverflowClass = page === 'help' ? 'overflow-visible' : 'overflow-auto';
 
   useEffect(() => {
     const handlePopState = () => {
@@ -80,7 +81,7 @@ function App() {
         onNavigate={navigate}
         onNavigateLanding={() => navigate('landing', { allowSignedInLanding: true })}
       />
-      <main className={`flex-1 overflow-auto ${user || inviteMatch ? 'px-4 py-6 sm:px-6 lg:px-8' : ''}`}>
+      <main className={`flex-1 ${mainOverflowClass} ${user || inviteMatch ? 'px-4 py-6 sm:px-6 lg:px-8' : ''}`}>
         {renderContent()}
       </main>
       <Footer onNavigate={navigate} />
