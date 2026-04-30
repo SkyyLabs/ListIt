@@ -549,6 +549,7 @@ export default function ListDetail({
             canInvite={canInvite}
             canManagePermissions={canManagePermissions}
             canRemoveCollaborator={canRemoveCollaborator}
+            currentUserUid={user?.uid}
             onSaveCollaboratorChanges={handleSaveCollaboratorChanges}
             ownerUid={ownerUid}
             showCollaborators={showCollaborators}

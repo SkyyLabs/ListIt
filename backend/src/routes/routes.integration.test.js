@@ -379,6 +379,33 @@ test('DELETE /lists/:id/collaborators/:collabUid rejects a READ collaborator', a
   assert.equal(text, 'Forbidden');
 });
 
+test('DELETE /lists/:id/collaborators/:collabUid allows a collaborator to remove themselves', async () => {
+  let savedCollaborators;
+  List.findById = async () => ({
+    _id: 'list-1',
+    ownerUid: 'owner-1',
+    collaborators: [
+      { uid: 'collab-1', permissions: ['READ'] },
+      { uid: 'stranger-1', permissions: ['READ'] }
+    ],
+    save: async function save() {
+      savedCollaborators = this.collaborators;
+      return this;
+    }
+  });
+
+  const { status, text } = await request('/lists/list-1/collaborators/collab-1', {
+    method: 'DELETE',
+    headers: {
+      authorization: 'Bearer collabToken'
+    }
+  });
+
+  assert.equal(status, 200);
+  assert.deepEqual(savedCollaborators.map(collaborator => collaborator.uid), ['stranger-1']);
+  assert.deepEqual(JSON.parse(text).collaborators.map(collaborator => collaborator.uid), ['stranger-1']);
+});
+
 test('DELETE /lists/:id/collaborators/:collabUid never removes the owner', async () => {
   List.findById = async () => ({
     _id: 'list-1',

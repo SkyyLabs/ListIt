@@ -62,6 +62,7 @@ export default function CollaboratorPanel({
   canInvite,
   canManagePermissions,
   canRemoveCollaborator,
+  currentUserUid,
   onSaveCollaboratorChanges,
   ownerUid,
   showCollaborators,
@@ -229,6 +230,9 @@ export default function CollaboratorPanel({
             {collaborators.map(collaborator => {
               const isOwner = collaborator.uid === ownerUid;
               const isRemoved = removedUids.has(collaborator.uid);
+              const canRemoveThisCollaborator = !isOwner && (
+                canRemoveCollaborator || collaborator.uid === currentUserUid
+              );
 
               return (
                 <li
@@ -263,13 +267,13 @@ export default function CollaboratorPanel({
                       </select>
                     )}
                   </div>
-                  {canRemoveCollaborator && !isOwner && (
+                  {canRemoveThisCollaborator && (
                     <button
                       onClick={() => toggleRemoval(collaborator.uid)}
                       className={isRemoved ? 'secondary-button px-3 py-2 text-xs' : 'danger-button px-3 py-2 text-xs'}
                       title={isRemoved ? 'Undo removal' : 'Remove collaborator'}
                     >
-                      {isRemoved ? 'Undo' : 'Remove'}
+                      {isRemoved ? 'Undo' : collaborator.uid === currentUserUid ? 'Leave' : 'Remove'}
                     </button>
                   )}
                 </li>

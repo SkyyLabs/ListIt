@@ -324,7 +324,7 @@ router.delete('/:id/collaborators/:collabUid', asyncHandler(async (req, res) => 
   if (!list) throw createHttpError(404, 'List not found');
 
   await ensureStructuredCollaborators(list);
-  if (!canRemoveCollaborator(list, req.user.uid)) {
+  if (!canRemoveCollaborator(list, req.user.uid, req.params.collabUid)) {
     throw createHttpError(403, 'Forbidden');
   }
   if (req.params.collabUid === list.ownerUid) {
