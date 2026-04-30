@@ -104,8 +104,11 @@ function canUpdateCollaboratorPermissions(list, uid) {
   return canEditAll(list, uid);
 }
 
-function canRemoveCollaborator(list, uid) {
-  return canEditAll(list, uid);
+function canRemoveCollaborator(list, uid, targetUid) {
+  return Boolean(
+    canEditAll(list, uid) ||
+    (uid && uid === targetUid && isCollaborator(list, uid))
+  );
 }
 
 module.exports = {
