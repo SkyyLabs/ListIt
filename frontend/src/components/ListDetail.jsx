@@ -505,7 +505,7 @@ export default function ListDetail({
     >
       {isPinned && (
         <div
-          className={`absolute left-0 top-0 z-10 grid h-6 w-6 grid-cols-3 place-items-center gap-0.5 bg-white/60 p-1.5 text-slate-500 shadow-sm [clip-path:polygon(0_0,100%_0,0_100%)] ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className={`absolute left-0 top-0 z-10 grid h-[30px] w-[30px] grid-cols-3 place-items-center gap-0.5 bg-white/60 p-2 text-slate-500 shadow-sm [clip-path:polygon(0_0,100%_0,0_100%)] ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           title="Drag pinned list"
         >
           {Array.from({ length: 9 }).map((_, index) => (
