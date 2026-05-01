@@ -237,7 +237,7 @@ export default function CollaboratorPanel({
               return (
                 <li
                   key={collaborator.uid}
-                  className={`flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs transition sm:text-sm ${isRemoved ? 'opacity-60' : ''}`}
+                  className={`flex flex-col items-stretch gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs transition sm:flex-row sm:items-start sm:justify-between sm:text-sm ${isRemoved ? 'opacity-60' : ''}`}
                 >
                   <div className="min-w-0 flex-1">
                     <div className={`font-semibold text-slate-900 ${isRemoved ? 'line-through' : ''}`}>
@@ -257,7 +257,7 @@ export default function CollaboratorPanel({
                           }))
                         }
                         disabled={!canManagePermissions || isRemoved}
-                        className="select-field mt-2"
+                        className="select-field mt-2 w-full sm:w-auto"
                       >
                         {ACCESS_LEVELS.map(level => (
                           <option key={level.value} value={level.value}>
@@ -298,7 +298,7 @@ export default function CollaboratorPanel({
                 return (
                   <li
                     key={invitation._id || invitation.email}
-                    className={`flex items-start justify-between gap-3 rounded-xl bg-white/75 px-3 py-2 text-sm transition ${isCanceled ? 'opacity-60' : ''}`}
+                    className={`flex flex-col items-stretch gap-3 rounded-xl bg-white/75 px-3 py-2 text-sm transition sm:flex-row sm:items-start sm:justify-between ${isCanceled ? 'opacity-60' : ''}`}
                   >
                     <div>
                       <div className={`font-semibold text-slate-900 ${isCanceled ? 'line-through' : ''}`}>
@@ -337,7 +337,7 @@ export default function CollaboratorPanel({
               {stagedInvites.map(invite => (
                 <li
                   key={invite.email}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-white/75 px-3 py-2 text-sm"
+                  className="flex flex-col gap-3 rounded-xl bg-white/75 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
                     <div className="font-semibold text-slate-900">{invite.email}</div>
@@ -371,7 +371,7 @@ export default function CollaboratorPanel({
             <select
               value={inviteAccessLevel}
               onChange={event => setInviteAccessLevel(event.target.value)}
-              className="select-field"
+              className="select-field w-full sm:w-auto"
             >
               {ACCESS_LEVELS.map(level => (
                 <option key={level.value} value={level.value}>
@@ -385,17 +385,17 @@ export default function CollaboratorPanel({
           </form>
         )}
 
-        <div className="flex justify-end gap-2">
+        <div className="modal-actions justify-end">
           <button
             onClick={toggleCollaborators}
-            className="secondary-button"
+            className="secondary-button w-full sm:w-auto"
             disabled={saving}
           >
             Cancel
           </button>
           <button
             onClick={handleDone}
-            className="primary-button"
+            className="primary-button w-full sm:w-auto"
             disabled={saving}
           >
             {saving ? 'Saving…' : 'Done'}

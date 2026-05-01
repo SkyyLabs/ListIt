@@ -4,6 +4,7 @@ export default function ListDetailHeader({
   canEdit,
   categoryName,
   editMode,
+  hasTopRightAction = false,
   ownerLabel,
   onCancelEdit,
   onEnterEditMode,
@@ -13,8 +14,8 @@ export default function ListDetailHeader({
   title
 }) {
   return (
-    <div className="mb-5 flex items-start justify-between gap-4">
-      <div className="min-w-0 pr-6">
+    <div className="mb-5 flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
+      <div className={`min-w-0 ${hasTopRightAction ? 'pr-24 sm:pr-28' : 'pr-0 sm:pr-6'}`}>
         <h3 className="break-words text-2xl font-semibold leading-tight text-slate-950">
           {title}
         </h3>

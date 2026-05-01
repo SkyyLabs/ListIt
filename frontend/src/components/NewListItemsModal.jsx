@@ -68,9 +68,23 @@ export default function NewListItemsModal({
     }
   };
 
+  const handleSuggestionPointerDown = (event, value) => {
+    event.preventDefault();
+    setSubCategory(value);
+    setShowSuggestions(false);
+  };
+
   return (
-    <div className="modal-backdrop" onClick={() => onFinish(addedItems)}>
+    <div
+      className="modal-backdrop"
+      onClick={event => {
+        if (event.target === event.currentTarget && window.innerWidth >= 640) {
+          onFinish(addedItems);
+        }
+      }}
+    >
       <form
+        onPointerDown={event => event.stopPropagation()}
         onClick={event => event.stopPropagation()}
         onSubmit={handleAddItem}
         className="modal-panel max-w-lg space-y-4"
@@ -90,7 +104,6 @@ export default function NewListItemsModal({
           placeholder="Item text"
           value={text}
           onChange={event => setText(event.target.value)}
-          autoFocus
         />
 
         <div className="relative" ref={wrapperRef}>
@@ -114,10 +127,8 @@ export default function NewListItemsModal({
                 filtered.map(value => (
                   <li
                     key={value}
-                    onClick={() => {
-                      setSubCategory(value);
-                      setShowSuggestions(false);
-                    }}
+                    onMouseDown={event => handleSuggestionPointerDown(event, value)}
+                    onPointerDown={event => handleSuggestionPointerDown(event, value)}
                     className="cursor-pointer rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                   >
                     {value}
@@ -137,9 +148,9 @@ export default function NewListItemsModal({
             </div>
             <ul className="max-h-36 space-y-2 overflow-auto">
               {addedItems.map(item => (
-                <li key={item._id} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-sm">
-                  <span className="font-semibold text-slate-800">{item.text}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
+                <li key={item._id} className="flex flex-col gap-2 rounded-xl bg-white px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <span className="break-words font-semibold text-slate-800">{item.text}</span>
+                  <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
                     {item.subCategory}
                   </span>
                 </li>
@@ -148,18 +159,18 @@ export default function NewListItemsModal({
           </div>
         )}
 
-        <div className="flex justify-between gap-2">
+        <div className="modal-actions justify-between">
           <button
             type="button"
             onClick={() => onFinish(addedItems)}
-            className="secondary-button"
+            className="secondary-button w-full sm:w-auto"
           >
             {addedItems.length > 0 ? 'Done' : 'Skip'}
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="primary-button"
+            className="primary-button w-full sm:w-auto"
           >
             {saving ? 'Adding…' : 'Add Item'}
           </button>

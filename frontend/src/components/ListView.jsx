@@ -437,7 +437,7 @@ export default function ListView({ user, viewMode = 'home' }) {
           </p>
         </div>
 
-        <div className="control-bar flex flex-wrap items-center gap-3">
+        <div className="control-bar flex w-full flex-wrap items-center gap-3 lg:w-auto">
         {user && viewMode === 'home' && (
           <button
             onClick={() => setShowNewList(true)}
@@ -468,12 +468,12 @@ export default function ListView({ user, viewMode = 'home' }) {
           </label>
         )}
 
-        <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+        <label className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold text-slate-600 sm:flex-none">
           Category
           <select
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
-            className="select-field"
+            className="select-field min-w-0 flex-1 sm:flex-none"
           >
             <option value="">All</option>
             {visibleCategories.map(c => (

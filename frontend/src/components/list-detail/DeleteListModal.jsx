@@ -9,10 +9,15 @@ export default function DeleteListModal({
   return (
     <div
       className="modal-backdrop"
-      onClick={onCancel}
+      onClick={event => {
+        if (event.target === event.currentTarget && window.innerWidth >= 640) {
+          onCancel();
+        }
+      }}
     >
       <div
         className="modal-panel max-w-sm"
+        onPointerDown={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}
       >
         <h2 className="mb-3 text-xl font-semibold text-slate-950">
@@ -23,17 +28,17 @@ export default function DeleteListModal({
             {deleteError}
           </p>
         )}
-        <div className="flex justify-end gap-2">
+        <div className="modal-actions justify-end">
           <button
             onClick={onCancel}
-            className="secondary-button"
+            className="secondary-button w-full sm:w-auto"
             disabled={deleting}
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="danger-button"
+            className="danger-button w-full sm:w-auto"
           >
             {deleting ? 'Deleting…' : 'Delete'}
           </button>

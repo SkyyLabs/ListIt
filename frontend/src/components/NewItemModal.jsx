@@ -48,6 +48,11 @@ export default function NewItemModal({
     setShowSug(false);
   };
 
+  const handleSuggestionPointerDown = (event, val) => {
+    event.preventDefault();
+    handleSelect(val);
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     if (!text.trim()) {
@@ -77,9 +82,14 @@ export default function NewItemModal({
   return (
     <div
       className="modal-backdrop"
-      onClick={onClose}
+      onClick={event => {
+        if (event.target === event.currentTarget && window.innerWidth >= 640) {
+          onClose();
+        }
+      }}
     >
       <form
+        onPointerDown={event => event.stopPropagation()}
         onClick={e => e.stopPropagation()}
         onSubmit={handleSubmit}
         className="modal-panel max-w-md space-y-4"
@@ -117,7 +127,8 @@ export default function NewItemModal({
                 filtered.map(sc => (
                   <li
                     key={sc}
-                    onClick={() => handleSelect(sc)}
+                    onMouseDown={event => handleSuggestionPointerDown(event, sc)}
+                    onPointerDown={event => handleSuggestionPointerDown(event, sc)}
                     className="cursor-pointer rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                   >
                     {sc}
@@ -130,17 +141,17 @@ export default function NewItemModal({
           )}
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="modal-actions justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="secondary-button"
+            className="secondary-button w-full sm:w-auto"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="primary-button"
+            className="primary-button w-full sm:w-auto"
           >
             Add
           </button>

@@ -49,27 +49,27 @@ body {
   }
 
   .control-bar {
-    @apply surface rounded-[28px] px-4 py-4 sm:px-5;
+    @apply surface rounded-[28px] px-3 py-3 sm:px-5 sm:py-4;
   }
 
   .primary-button {
-    @apply inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_14px_35px_-18px_rgba(15,23,42,0.8)] transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-10 items-center justify-center rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_35px_-18px_rgba(15,23,42,0.8)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:hover:-translate-y-0.5;
   }
 
   .secondary-button {
-    @apply inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-10 items-center justify-center rounded-full border border-slate-200 bg-white/85 px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:hover:-translate-y-0.5;
   }
 
   .danger-button {
-    @apply inline-flex items-center justify-center rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-10 items-center justify-center rounded-full bg-rose-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4;
   }
 
   .ghost-button {
-    @apply inline-flex items-center justify-center rounded-full px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-900/5 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-10 items-center justify-center rounded-full px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-900/5 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .icon-button {
-    @apply inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/85 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white;
+    @apply inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white/85 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white sm:hover:-translate-y-0.5;
   }
 
   .field {
@@ -77,7 +77,7 @@ body {
   }
 
   .select-field {
-    @apply rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-500 focus:ring-4 focus:ring-slate-200/80;
+    @apply min-h-10 rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-500 focus:ring-4 focus:ring-slate-200/80;
   }
 
   .chip {
@@ -85,15 +85,19 @@ body {
   }
 
   .toggle-label {
-    @apply inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/75 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm;
+    @apply inline-flex min-h-10 items-center gap-2 rounded-full border border-slate-200 bg-white/75 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm;
   }
 
   .modal-backdrop {
-    @apply fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm;
+    @apply fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-4;
   }
 
   .modal-panel {
-    @apply surface w-full rounded-[28px] p-5 sm:p-6;
+    @apply surface max-h-[88vh] w-full overflow-auto rounded-t-[28px] p-5 sm:rounded-[28px] sm:p-6;
+  }
+
+  .modal-actions {
+    @apply sticky bottom-0 -mx-5 -mb-5 mt-4 flex gap-2 border-t border-slate-200/70 bg-white/90 px-5 py-4 backdrop-blur sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0;
   }
 
   .note-yellow {

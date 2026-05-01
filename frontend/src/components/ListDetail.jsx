@@ -140,6 +140,9 @@ export default function ListDetail({
   const ownerLabel = getUserDisplayLabel(listState.owner) || ownerUid;
 
   const color = NOTE_COLORS[listState._id.charCodeAt(0) % NOTE_COLORS.length];
+  const supportsPreciseHover = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
   useEffect(() => {
     setListState(list);
@@ -508,7 +511,7 @@ export default function ListDetail({
         onDragStart?.(event);
       }}
       onDrop={onDrop}
-      whileHover={{ y: -4 }}
+      whileHover={{ y: supportsPreciseHover ? -4 : 0 }}
       whileTap={{ scale: 0.99 }}
       className={`relative flex min-h-[460px] flex-col overflow-hidden rounded-[30px] border border-white/80 ${color} p-5 shadow-[0_22px_70px_-45px_rgba(15,23,42,0.7)] sm:p-6 ${isPinned ? dragging ? 'cursor-grabbing' : 'cursor-grab' : ''}`}
     >
@@ -527,7 +530,7 @@ export default function ListDetail({
         <button
           onClick={handleRemoveFromHome}
           disabled={homeActionSaving}
-          className="absolute right-5 top-5 z-10 rounded-full border border-rose-100 bg-white/85 px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-50 disabled:opacity-50"
+          className="absolute right-4 top-4 z-10 min-h-9 rounded-full border border-rose-100 bg-white/85 px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm transition hover:bg-rose-50 disabled:opacity-50 sm:right-5 sm:top-5 sm:hover:-translate-y-0.5"
         >
           Remove
         </button>
@@ -548,6 +551,7 @@ export default function ListDetail({
       {/* Title + Edit Controls row */}
       <ListDetailHeader
         canEdit={canEnterEditMode}
+        hasTopRightAction={canRemoveFromHome && !editMode}
         categoryName={listState.categoryId?.name}
         editMode={editMode}
         ownerLabel={ownerLabel}
@@ -636,14 +640,14 @@ export default function ListDetail({
         </div>
       )}
 
-      <div className="mt-auto flex items-end justify-between gap-3 pt-4">
-        <div className="flex items-center gap-2">
+      <div className="mt-auto flex flex-col gap-3 pt-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           {canAddToHome && !editMode && (
             <button
               onClick={handleAddToHome}
               disabled={homeActionSaving}
               aria-label="Add list to Home"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-lg font-semibold leading-none text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-100 disabled:opacity-50"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-lg font-semibold leading-none text-emerald-700 shadow-sm transition hover:bg-emerald-100 disabled:opacity-50 sm:h-9 sm:w-9 sm:hover:-translate-y-0.5"
               title="Add to Home"
             >
               +
@@ -653,7 +657,7 @@ export default function ListDetail({
             <button
               onClick={onTogglePin}
               aria-label={isPinned ? 'Unpin list' : 'Pin list'}
-              className={`rounded-full border px-3 py-2 text-xs font-semibold leading-none shadow-sm transition hover:-translate-y-0.5 ${
+              className={`min-h-10 rounded-full border px-3 py-2 text-xs font-semibold leading-none shadow-sm transition sm:min-h-0 sm:hover:-translate-y-0.5 ${
                 isPinned
                   ? 'border-slate-950 bg-slate-950 text-white'
                   : 'border-white bg-white/75 text-slate-700'
@@ -665,7 +669,7 @@ export default function ListDetail({
           {canDuplicate && (
             <button
               onClick={handleDuplicate}
-              className="rounded-full border border-white bg-white/75 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+              className="min-h-10 rounded-full border border-white bg-white/75 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-white sm:min-h-0 sm:hover:-translate-y-0.5"
             >
               Duplicate
             </button>
@@ -681,12 +685,12 @@ export default function ListDetail({
             </button>
           )
         ) : (
-          <div className="ml-auto flex items-center gap-2 text-xs sm:text-sm">
+          <div className="flex items-center gap-2 text-xs sm:ml-auto sm:text-sm">
             <button
               onClick={() => handleReactionChange('like')}
               disabled={!user}
               aria-label="Thumbs up"
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${
+              className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition disabled:opacity-50 sm:min-h-0 sm:hover:-translate-y-0.5 ${
                 listState.currentUserReaction === 'like'
                   ? 'border-emerald-500 bg-emerald-100 text-emerald-800'
                   : 'border-emerald-200 bg-white/75 text-emerald-700 hover:bg-emerald-50'
@@ -699,7 +703,7 @@ export default function ListDetail({
               onClick={() => handleReactionChange('dislike')}
               disabled={!user}
               aria-label="Thumbs down"
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 disabled:opacity-50 ${
+              className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold shadow-sm transition disabled:opacity-50 sm:min-h-0 sm:hover:-translate-y-0.5 ${
                 listState.currentUserReaction === 'dislike'
                   ? 'border-rose-500 bg-rose-100 text-rose-800'
                   : 'border-rose-200 bg-white/75 text-rose-700 hover:bg-rose-50'

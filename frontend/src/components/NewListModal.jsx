@@ -50,6 +50,11 @@ export default function NewListModal({
     setShowSuggestions(false);
   };
 
+  const handleSuggestionPointerDown = (event, name) => {
+    event.preventDefault();
+    handleSelectCat(name);
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     const t = title.trim();
@@ -72,9 +77,14 @@ export default function NewListModal({
   return (
     <div
       className="modal-backdrop"
-      onClick={onClose}
+      onClick={event => {
+        if (event.target === event.currentTarget && window.innerWidth >= 640) {
+          onClose();
+        }
+      }}
     >
       <form
+        onPointerDown={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}
         onSubmit={handleSubmit}
         className="modal-panel max-w-md space-y-4"
@@ -112,7 +122,8 @@ export default function NewListModal({
                 filteredCats.map(cat => (
                   <li
                     key={cat._id}
-                    onClick={() => handleSelectCat(cat.name)}
+                    onMouseDown={event => handleSuggestionPointerDown(event, cat.name)}
+                    onPointerDown={event => handleSuggestionPointerDown(event, cat.name)}
                     className="cursor-pointer rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
                   >
                     {cat.name}
@@ -138,17 +149,17 @@ export default function NewListModal({
           Public
         </label>
 
-        <div className="flex justify-end gap-2">
+        <div className="modal-actions justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="secondary-button"
+            className="secondary-button w-full sm:w-auto"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="primary-button"
+            className="primary-button w-full sm:w-auto"
           >
             Create
           </button>

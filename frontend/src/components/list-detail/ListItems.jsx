@@ -25,7 +25,7 @@ export default function ListItems({
         return (
           <li
             key={item._id}
-            className={`flex items-start gap-3 rounded-2xl bg-white/48 p-3 shadow-sm transition ${isRemoved ? 'opacity-60' : ''}`}
+            className={`flex flex-wrap items-start gap-3 rounded-2xl bg-white/48 p-3 shadow-sm transition ${isRemoved ? 'opacity-60' : ''}`}
           >
             <input
               type="checkbox"
@@ -67,7 +67,7 @@ export default function ListItems({
               )}
             </div>
             {draftItem.subCategory && (
-              <span className="max-w-[34%] flex-shrink-0 truncate rounded-full bg-white/60 px-2 py-1 text-xs font-semibold text-slate-600">
+              <span className="max-w-full flex-shrink-0 truncate rounded-full bg-white/60 px-2 py-1 text-xs font-semibold text-slate-600 sm:max-w-[34%]">
                 {draftItem.subCategory}
               </span>
             )}
